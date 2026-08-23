@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Recovery Copilot</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-surface": "#d4e4fa",
+                        "tertiary": "#bcc7de",
+                        "primary-fixed": "#dae2fd",
+                        "surface-bright": "#2c3a4c",
+                        "tertiary-fixed-dim": "#bcc7de",
+                        "inverse-surface": "#d4e4fa",
+                        "on-tertiary-container": "#768197",
+                        "on-secondary-container": "#e6ecff",
+                        "surface-variant": "#273647",
+                        "inverse-primary": "#565e74",
+                        "on-surface-variant": "#c6c6cd",
+                        "tertiary-fixed": "#d8e3fb",
+                        "surface-container-high": "#1c2b3c",
+                        "inverse-on-surface": "#233143",
+                        "on-secondary": "#002e6a",
+                        "error-container": "#93000a",
+                        "primary": "#bec6e0",
+                        "on-background": "#d4e4fa",
+                        "secondary-fixed": "#d8e2ff",
+                        "surface-container-lowest": "#010f1f",
+                        "on-tertiary-fixed-variant": "#3c475a",
+                        "on-tertiary-fixed": "#111c2d",
+                        "surface-dim": "#051424",
+                        "surface-container": "#122131",
+                        "surface-container-low": "#0d1c2d",
+                        "on-tertiary": "#263143",
+                        "surface-container-highest": "#273647",
+                        "outline": "#909097",
+                        "primary-fixed-dim": "#bec6e0",
+                        "error": "#ffb4ab",
+                        "primary-container": "#0f172a",
+                        "background": "#051424",
+                        "on-error-container": "#ffdad6",
+                        "on-secondary-fixed-variant": "#004395",
+                        "on-primary-fixed-variant": "#3f465c",
+                        "on-primary-fixed": "#131b2e",
+                        "on-primary-container": "#798098",
+                        "on-error": "#690005",
+                        "surface-tint": "#bec6e0",
+                        "secondary-container": "#0566d9",
+                        "on-secondary-fixed": "#001a42",
+                        "outline-variant": "#45464d",
+                        "tertiary-container": "#0c1829",
+                        "on-primary": "#283044",
+                        "surface": "#051424",
+                        "secondary": "#adc6ff",
+                        "secondary-fixed-dim": "#adc6ff",
+                        "success": "#34d399",
+                        "warning": "#fbbf24"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "stack-sm": "8px",
+                        "stack-md": "16px",
+                        "container-padding": "24px",
+                        "card-gap": "20px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "label-sm": ["JetBrains Mono"],
+                        "label-md": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "body-sm": ["12px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "headline-lg": ["30px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "label-sm": ["10px", { "lineHeight": "14px", "fontWeight": "500" }],
+                        "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .chart-bar { transition: width 1s ease-out; }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md min-h-screen">
+    <!-- Toast notifications container -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- TopNavBar -->
+    <header class="bg-surface-container dark:bg-surface-container docked full-width top-0 border-b border-outline-variant dark:border-outline-variant flat no shadows flex justify-between items-center w-full px-gutter h-16 max-w-[1600px] mx-auto z-50 sticky">
+        <div class="flex items-center gap-6">
+            <div class="font-headline-md text-headline-md font-bold text-on-surface dark:text-on-surface">Recovery Copilot</div>
+            <nav class="hidden md:flex items-center gap-4">
+                <a class="text-primary dark:text-primary border-b-2 border-primary pb-1 font-label-md text-label-md px-2 py-1" href="#">Dashboard</a>
+                <div class="relative group">
+                    <button class="text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-variant dark:hover:bg-surface-variant transition-colors font-label-md text-label-md px-2 py-1 rounded flex items-center gap-1">
+                        Settings <span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
+                    </button>
+                    <div class="absolute left-0 top-full mt-1 w-64 bg-surface-container-high border border-outline-variant rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 p-4">
+                        <div class="flex flex-col gap-2">
+                            <label class="font-label-md text-label-md text-on-surface-variant flex justify-between">
+                                <span>Confidence Threshold</span>
+                                <span id="threshold-val" class="text-primary">0.70</span>
+                            </label>
+                            <input id="slider-threshold" type="range" min="0.3" max="0.9" step="0.05" value="0.70" class="w-full h-1 bg-surface-variant rounded-lg appearance-none cursor-pointer accent-[#3B82F6]" oninput="document.getElementById('threshold-val').innerText = parseFloat(this.value).toFixed(2)">
+                            
+                            <div class="border-t border-outline-variant my-2 pt-2">
+                                <button onclick="exportToCSV()" class="w-full py-2 bg-[#3B82F6] hover:bg-blue-600 rounded-lg transition-colors font-label-md text-label-md text-white flex items-center justify-center gap-2">
+                                    <span class="material-symbols-outlined text-[18px]">download</span>
+                                    <span>Export to CSV</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </div>
+        <div class="flex items-center gap-4">
+            <select id="select-scenario" class="hidden lg:block bg-surface-container border border-outline-variant text-on-surface hover:bg-surface-variant transition-colors rounded-lg px-3 py-2 font-label-md text-label-md focus:outline-none">
+                <option value="baseline">Baseline Mix</option>
+                <option value="card_heavy">Card Heavy Mix</option>
+                <option value="infra_heavy">Infra Heavy Mix</option>
+                <option value="ambiguous_heavy">Ambiguous Heavy Mix</option>
+            </select>
+            <button id="btn-generate" onclick="generateBatch()" class="hidden lg:block px-4 py-2 border border-outline-variant rounded-lg text-on-surface hover:bg-surface-variant transition-all font-label-md text-label-md flex items-center justify-center gap-2">
+                <span>Generate New Batch</span>
+            </button>
+            <button id="btn-run-recovery" onclick="runRecoveryBatch()" class="bg-[#3B82F6] hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-all font-label-md text-label-md flex items-center justify-center gap-2">
+                <span>Run Recovery Batch</span>
+            </button>
+            <button id="btn-run-until-resolved" onclick="runUntilResolved()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-all font-label-md text-label-md flex items-center justify-center gap-2">
+                <span>Run Until Resolved</span>
+            </button>
+            <button id="btn-help" onclick="startTour()" class="p-2 text-on-surface-variant hover:bg-surface-variant rounded-full transition-colors flex items-center justify-center">
+                <span class="material-symbols-outlined" data-icon="help">help</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-[1600px] mx-auto p-container-padding grid grid-cols-12 gap-card-gap">
+        <!-- Top Section: Stat Cards -->
+        <div class="col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-card-gap">
+            <!-- Card 1 -->
+            <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="font-label-md text-label-md text-on-surface-variant">Net Amount Recovered</span>
+                    <span class="material-symbols-outlined text-success opacity-50" data-icon="payments">payments</span>
+                </div>
+                <div id="net-recovered" class="font-headline-lg text-headline-lg text-success mt-2">₹0</div>
+                <div class="mt-2 text-success font-label-sm text-label-sm flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[14px]">trending_up</span> +12.5% vs last week
+                </div>
+            </div>
+            <!-- Card 2 -->
+            <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors flex flex-col justify-between">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="font-label-md text-label-md text-on-surface-variant">Overall Recovery Rate</span>
+                    <span class="material-symbols-outlined text-primary opacity-50" data-icon="data_usage">data_usage</span>
+                </div>
+                <div class="flex items-end justify-between mt-2">
+                    <div id="recovery-rate" class="font-headline-lg text-headline-lg text-primary">0%</div>
+                    <!-- Simple Circular Progress -->
+                    <div class="relative w-12 h-12">
+                        <svg class="w-full h-full" viewbox="0 0 36 36">
+                            <path class="text-surface-variant stroke-current" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke-width="4"></path>
+                            <path id="recovery-rate-circle" class="text-primary stroke-current transition-all duration-500" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke-dasharray="0, 100" stroke-linecap="round" stroke-width="4"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            <!-- Card 3 -->
+            <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="font-label-md text-label-md text-on-surface-variant">Amount Still At Risk</span>
+                    <span class="material-symbols-outlined text-warning opacity-50" data-icon="warning">warning</span>
+                </div>
+                <div id="amount-at-risk" class="font-headline-lg text-headline-lg text-warning mt-2">₹0</div>
+                <div class="mt-2 text-warning font-label-sm text-label-sm flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[14px]">error</span> Needs attention
+                </div>
+            </div>
+            <!-- Card 4 -->
+            <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="font-label-md text-label-md text-on-surface-variant flex items-center gap-1">
+                        Escalated to Human
+                        <span class="group/tooltip relative inline-flex items-center cursor-help">
+                            <span class="material-symbols-outlined text-[14px] text-on-surface-variant opacity-60 hover:opacity-100">info</span>
+                            <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-surface-container-highest border border-outline-variant text-[10px] text-on-surface font-body-sm rounded shadow-lg opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 z-50 pointer-events-none normal-case font-normal leading-normal">
+                                Low-confidence cases are never auto-actioned — they're routed to human review, in line with RBI/TRAI compliance norms for automated financial messaging.
+                            </span>
+                        </span>
+                    </span>
+                    <span class="material-symbols-outlined text-on-surface-variant opacity-50" data-icon="support_agent">support_agent</span>
+                </div>
+                <div id="escalated-count" class="font-headline-lg text-headline-lg text-on-surface mt-2">0</div>
+                <div class="mt-2 text-on-surface-variant font-label-sm text-label-sm flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[14px]">schedule</span> 3 urgent
+                </div>
+            </div>
+            <!-- Card 5 -->
+            <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="font-label-md text-label-md text-on-surface-variant">Promises to Pay</span>
+                    <span class="material-symbols-outlined text-primary opacity-50" data-icon="handshake">handshake</span>
+                </div>
+                <div id="promises-amount" class="font-headline-lg text-headline-lg text-primary mt-2">₹0</div>
+                <div class="mt-2 text-on-surface-variant font-label-sm text-label-sm flex items-center gap-1">
+                    <span id="promises-count">0</span> promised payments
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle Section: Charts -->
+        <div class="col-span-12 lg:col-span-8 bg-surface-container-high rounded-lg border border-outline-variant p-6 flex flex-col">
+            <h2 class="font-headline-sm text-headline-sm mb-6 text-on-surface">Recovery Rate by Failure Type</h2>
+            <div id="failure-bars" class="flex-grow flex flex-col justify-center gap-4">
+                <!-- Populated dynamically via JS -->
+                <div class="text-on-surface-variant text-center font-body-md py-8">Loading metrics...</div>
+            </div>
+        </div>
+        
+        <div class="col-span-12 lg:col-span-4 bg-surface-container-high rounded-lg border border-outline-variant p-6 flex flex-col items-center justify-center">
+            <h2 class="font-headline-sm text-headline-sm mb-6 w-full text-left text-on-surface">Actions Taken</h2>
+            <!-- CSS Donut Chart approximation -->
+            <div id="actions-donut" class="relative w-48 h-48 rounded-full bg-surface-variant flex items-center justify-center transition-all duration-500" style="background: conic-gradient(#94A3B8 0% 100%);">
+                <div class="w-32 h-32 rounded-full bg-surface-container-high flex items-center justify-center flex-col shadow-inner">
+                    <span id="donut-percentage" class="font-headline-lg text-headline-lg text-on-surface">0%</span>
+                    <span id="donut-label" class="font-label-sm text-label-sm text-on-surface-variant">No actions</span>
+                </div>
+            </div>
+            <div id="actions-legend" class="mt-6 flex flex-wrap justify-center gap-4 w-full">
+                <!-- Dynamic legend -->
+            </div>
+        </div>
+
+        <!-- Bottom Section: Transactions Table -->
+        <div class="col-span-12 bg-surface-container-high rounded-lg border border-outline-variant overflow-hidden">
+            <div class="p-4 border-b border-outline-variant flex justify-between items-center bg-surface-container-high/80 backdrop-blur-sm sticky top-0 z-10">
+                <h2 class="font-headline-sm text-headline-sm text-on-surface">Transactions</h2>
+                <button class="text-on-surface-variant hover:text-on-surface font-label-sm text-label-sm flex items-center gap-1 transition-colors">
+                    <span class="material-symbols-outlined text-[16px]">filter_list</span> Filter
+                </button>
+            </div>
+            <div class="w-full overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-outline-variant text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider bg-surface-container">
+                            <th class="p-3 font-medium">Transaction ID</th>
+                            <th class="p-3 font-medium">Customer</th>
+                            <th class="p-3 font-medium">Amount</th>
+                            <th class="p-3 font-medium">Failure Reason</th>
+                            <th class="p-3 font-medium">Status</th>
+                            <th class="p-3 font-medium text-right">Attempts</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactions-tbody" class="font-label-md text-label-md">
+                        <!-- Populated dynamically via JS -->
+                        <tr>
+                            <td colspan="6" class="p-8 text-center text-on-surface-variant">Loading transactions...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Tour Overlay and Tooltip -->
+    <div id="tour-overlay" class="fixed inset-0 bg-black/60 z-[90] hidden transition-opacity duration-300 opacity-0 pointer-events-auto"></div>
+    <div id="tour-tooltip" class="fixed z-[100] bg-surface-container-highest border border-outline-variant rounded-lg p-5 shadow-2xl max-w-sm hidden flex flex-col gap-3 transition-all duration-300 opacity-0 transform translate-y-2 pointer-events-auto">
+        <div class="flex justify-between items-center">
+            <h3 id="tour-title" class="font-headline-sm text-headline-sm text-on-surface">Tour Step Title</h3>
+            <span id="tour-progress" class="font-label-sm text-label-sm text-primary bg-primary/10 px-2 py-0.5 rounded-full">1/5</span>
+        </div>
+        <p id="tour-desc" class="font-body-md text-body-md text-on-surface-variant">Description goes here.</p>
+        <div class="flex justify-between items-center mt-2">
+            <button onclick="closeTour()" class="text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors px-3 py-1.5 rounded hover:bg-surface-variant">Skip Tour</button>
+            <div class="flex gap-2">
+                <button id="tour-prev" onclick="prevTourStep()" class="px-4 py-1.5 border border-outline-variant rounded text-on-surface hover:bg-surface-variant transition-colors font-label-md text-label-md hidden">Back</button>
+                <button id="tour-next" onclick="nextTourStep()" class="bg-[#3B82F6] hover:bg-blue-600 text-white px-4 py-1.5 rounded transition-colors font-label-md text-label-md">Next</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : '';
+        function escapeHTML(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+        const FAILURE_NAMES = {
+            'insufficient_funds': 'Insufficient funds',
+            'expired_card': 'Expired card',
+            'network_timeout': 'Network timeout',
+            'bank_server_down': 'Bank server down',
+            'user_abandoned': 'User abandoned',
+            'invalid_cvv': 'Invalid CVV',
+            'card_declined_generic': 'Card declined (generic)'
+        };
+
+        // Utility to format numbers as INR
+        function formatINR(amount) {
+            return new Intl.NumberFormat('en-IN', {
+                style: 'currency',
+                currency: 'INR',
+                maximumFractionDigits: 0
+            }).format(amount);
+        }
+
+        // Show toaster notification
+        function showToast(message, type = 'error') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border text-sm transition-all duration-300 transform translate-y-2 opacity-0 max-w-sm bg-surface-container-high ${
+                type === 'success' 
+                    ? 'border-success/30 text-success' 
+                    : 'border-error/30 text-error'
+            }`;
+            
+            const icon = type === 'success' ? 'check_circle' : 'error';
+            toast.innerHTML = `
+                <span class="material-symbols-outlined text-[20px]">${icon}</span>
+                <span class="flex-1">${message}</span>
+                <button class="text-on-surface-variant hover:text-on-surface" onclick="this.parentElement.remove()">
+                    <span class="material-symbols-outlined text-[16px]">close</span>
+                </button>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Trigger animation
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+            
+            // Auto remove
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // Tour Logic
+        const tourSteps = [
+            {
+                elementId: 'select-scenario',
+                title: 'Data Generation',
+                desc: 'Select different failure distributions to see how the AI adapts its recovery strategy. Try "Card Heavy" for payment method issues.',
+                position: 'bottom-right'
+            },
+            {
+                elementId: 'btn-run-recovery',
+                title: 'Run Recovery Loops',
+                desc: 'Execute a single pass over pending transactions. The AI analyzes the failure reason and decides the best next action.',
+                position: 'bottom-right'
+            },
+            {
+                elementId: 'net-recovered',
+                title: 'Key Metrics',
+                desc: 'Track overall system performance. Notice how "Promises to Pay" captures early intent before settlement.',
+                position: 'bottom'
+            },
+            {
+                elementId: 'failure-bars',
+                title: 'Failure Analytics',
+                desc: 'Understand what is causing transactions to fail, and how successful the AI is at recovering each specific type.',
+                position: 'left'
+            },
+            {
+                elementId: 'transactions-tbody',
+                title: 'AI Audit Trail',
+                desc: 'Click any transaction to expand its timeline. See exactly what diagnosis the AI made, its reasoning, and the action taken for every attempt.',
+                position: 'top'
+            }
+        ];
+
+        let currentTourStep = 0;
+        let highlightedElement = null;
+        let originalZIndex = '';
+        let originalPosition = '';
+        let originalBg = '';
+
+        function startTour() {
+            currentTourStep = 0;
+            const overlay = document.getElementById('tour-overlay');
+            const tooltip = document.getElementById('tour-tooltip');
+            
+            overlay.classList.remove('hidden');
+            tooltip.classList.remove('hidden');
+            
+            setTimeout(() => {
+                overlay.classList.remove('opacity-0');
+            }, 10);
+            
+            renderTourStep();
+        }
+
+        function renderTourStep() {
+            const step = tourSteps[currentTourStep];
+            if (!step) {
+                closeTour();
+                return;
+            }
+
+            if (highlightedElement) {
+                highlightedElement.style.zIndex = originalZIndex;
+                highlightedElement.style.position = originalPosition;
+                highlightedElement.style.backgroundColor = originalBg;
+                highlightedElement.classList.remove('ring-4', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
+            }
+
+            let target = document.getElementById(step.elementId);
+            
+            if (currentTourStep === 2 || currentTourStep === 3 || currentTourStep === 4) {
+                 target = target.closest('.bg-surface-container-high');
+            }
+
+            if (!target) {
+                nextTourStep();
+                return;
+            }
+
+            highlightedElement = target;
+            originalZIndex = target.style.zIndex;
+            originalPosition = target.style.position;
+            originalBg = target.style.backgroundColor;
+
+            const computedStyle = window.getComputedStyle(target);
+            if (computedStyle.position === 'static') {
+                target.style.position = 'relative';
+            }
+            target.style.zIndex = '95';
+            
+            target.classList.add('ring-4', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
+            
+            if (currentTourStep < 4) {
+                 target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                 target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            document.getElementById('tour-title').innerText = step.title;
+            document.getElementById('tour-desc').innerText = step.desc;
+            document.getElementById('tour-progress').innerText = `${currentTourStep + 1}/${tourSteps.length}`;
+            
+            const prevBtn = document.getElementById('tour-prev');
+            const nextBtn = document.getElementById('tour-next');
+            
+            if (currentTourStep === 0) {
+                prevBtn.classList.add('hidden');
+            } else {
+                prevBtn.classList.remove('hidden');
+            }
+            
+            if (currentTourStep === tourSteps.length - 1) {
+                nextBtn.innerText = 'Finish';
+            } else {
+                nextBtn.innerText = 'Next';
+            }
+
+            positionTooltip(target, step.position);
+            
+            const tooltip = document.getElementById('tour-tooltip');
+            setTimeout(() => {
+                tooltip.classList.remove('opacity-0', 'translate-y-2');
+            }, 10);
+        }
+
+        function positionTooltip(target, positionPreference) {
+            const tooltip = document.getElementById('tour-tooltip');
+            const targetRect = target.getBoundingClientRect();
+            
+            tooltip.style.top = '';
+            tooltip.style.left = '';
+            
+            const tooltipRect = tooltip.getBoundingClientRect();
+            const tooltipWidth = tooltipRect.width || 384; 
+            const tooltipHeight = tooltipRect.height || 160; 
+            const padding = 16;
+            
+            let top, left;
+
+            if (positionPreference === 'bottom') {
+                top = targetRect.bottom + padding;
+                left = targetRect.left + (targetRect.width / 2) - (tooltipWidth / 2);
+            } else if (positionPreference === 'bottom-right') {
+                top = targetRect.bottom + padding;
+                left = targetRect.right - tooltipWidth;
+            } else if (positionPreference === 'top') {
+                top = targetRect.top - tooltipHeight - padding;
+                left = targetRect.left + (targetRect.width / 2) - (tooltipWidth / 2);
+            } else if (positionPreference === 'left') {
+                top = targetRect.top + (targetRect.height / 2) - (tooltipHeight / 2);
+                left = targetRect.left - tooltipWidth - padding;
+                if (left < 10) left = targetRect.right + padding;
+            } else {
+                top = targetRect.top + (targetRect.height / 2) - (tooltipHeight / 2);
+                left = targetRect.right + padding;
+            }
+
+            if (left < 10) left = 10;
+            if (left + tooltipWidth > window.innerWidth - 10) left = window.innerWidth - tooltipWidth - 10;
+            if (top < 10) top = targetRect.bottom + padding;
+            if (top + tooltipHeight > window.innerHeight - 10) top = targetRect.top - tooltipHeight - padding;
+
+            tooltip.style.top = `${top}px`;
+            tooltip.style.left = `${left}px`;
+        }
+
+        function nextTourStep() {
+            if (currentTourStep < tourSteps.length - 1) {
+                const tooltip = document.getElementById('tour-tooltip');
+                tooltip.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => {
+                    currentTourStep++;
+                    renderTourStep();
+                }, 200);
+            } else {
+                closeTour();
+            }
+        }
+
+        function prevTourStep() {
+            if (currentTourStep > 0) {
+                const tooltip = document.getElementById('tour-tooltip');
+                tooltip.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => {
+                    currentTourStep--;
+                    renderTourStep();
+                }, 200);
+            }
+        }
+
+        function closeTour() {
+            const overlay = document.getElementById('tour-overlay');
+            const tooltip = document.getElementById('tour-tooltip');
+            
+            overlay.classList.add('opacity-0');
+            tooltip.classList.add('opacity-0', 'translate-y-2');
+            
+            if (highlightedElement) {
+                highlightedElement.style.zIndex = originalZIndex;
+                highlightedElement.style.position = originalPosition;
+                highlightedElement.style.backgroundColor = originalBg;
+                highlightedElement.classList.remove('ring-4', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
+                highlightedElement = null;
+            }
+            
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                tooltip.classList.add('hidden');
+            }, 300);
+        }
+
+        // Set Loading State
+        function setLoading(btnId, isLoading, text) {
+            const btn = document.getElementById(btnId);
+            if (!btn) return;
+            const span = btn.querySelector('span');
+            
+            if (isLoading) {
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+                span.innerText = text;
+            } else {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                span.innerText = text;
+            }
+        }
+
+        // Fetch Dashboard Summary
+        async function fetchSummary() {
+            try {
+                const response = await fetch(`${API_BASE}/dashboard/summary`);
+                if (!response.ok) throw new Error('Failed to fetch summary metrics');
+                const data = await response.json();
+                
+                // 1. Update stats
+                document.getElementById('net-recovered').innerText = formatINR(data.net_amount_recovered);
+                document.getElementById('recovery-rate').innerText = `${(data.overall_recovery_rate * 100).toFixed(1)}%`;
+                document.getElementById('amount-at-risk').innerText = formatINR(data.amount_still_at_risk);
+                document.getElementById('escalated-count').innerText = data.escalated_count;
+                document.getElementById('promises-count').innerText = data.promise_to_pay_count;
+                document.getElementById('promises-amount').innerText = formatINR(data.promised_amount_total);
+                
+                // 2. Update recovery rate circular progress bar
+                const circle = document.getElementById('recovery-rate-circle');
+                if (circle) {
+                    const rate = data.overall_recovery_rate * 100;
+                    circle.setAttribute('stroke-dasharray', `${rate.toFixed(1)}, 100`);
+                }
+
+                // 3. Render Failure mix bars
+                renderFailureBars(data.by_failure_type);
+
+                // 4. Render Donut Chart
+                renderDonutChart(data.action_counts);
+
+            } catch (error) {
+                console.error(error);
+                showToast(`Unable to load dashboard summary metrics: ${error.message}`);
+            }
+        }
+
+        // Render failure bars
+        function renderFailureBars(byFailureType) {
+            const container = document.getElementById('failure-bars');
+            container.innerHTML = '';
+            
+            const entries = Object.entries(byFailureType);
+            if (entries.length === 0) {
+                container.innerHTML = `<div class="text-on-surface-variant text-center py-4 font-body-sm">No transaction failures recorded yet.</div>`;
+                return;
+            }
+            
+            // Sort by total failures
+            entries.sort((a, b) => b[1].total - a[1].total);
+            
+            entries.forEach(([code, stats]) => {
+                const name = FAILURE_NAMES[code] || code.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                const ratePct = (stats.recovery_rate * 100).toFixed(0);
+                
+                const barHtml = `
+                    <div class="w-full">
+                        <div class="flex justify-between mb-1 font-label-sm text-label-sm text-on-surface-variant">
+                            <span>${name} (${stats.recovered}/${stats.total})</span>
+                            <span>${ratePct}%</span>
+                        </div>
+                        <div class="w-full bg-surface-variant rounded-full h-2">
+                            <div class="bg-[#3B82F6] h-2 rounded-full chart-bar" style="width: ${ratePct}%"></div>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', barHtml);
+            });
+        }
+
+        // Render donut chart
+        function renderDonutChart(actionCounts) {
+            const donut = document.getElementById('actions-donut');
+            const pctText = document.getElementById('donut-percentage');
+            const lblText = document.getElementById('donut-label');
+            const legend = document.getElementById('actions-legend');
+            
+            legend.innerHTML = '';
+            
+            if (!actionCounts) {
+                donut.style.background = 'conic-gradient(#94A3B8 0% 100%)';
+                pctText.innerText = '0%';
+                lblText.innerText = 'No actions';
+                return;
+            }
+            
+            const total = Object.values(actionCounts).reduce((a, b) => a + b, 0);
+            
+            if (total === 0) {
+                donut.style.background = 'conic-gradient(#94A3B8 0% 100%)';
+                pctText.innerText = '0%';
+                lblText.innerText = 'No actions';
+                return;
+            }
+
+            const colors = {
+                retry: '#3B82F6',
+                nudge: '#60A5FA',
+                new_method: '#93C5FD',
+                escalate: '#94A3B8'
+            };
+
+            const labels = {
+                retry: 'Retry',
+                nudge: 'Nudge',
+                new_method: 'New Method',
+                escalate: 'Escalate'
+            };
+
+            // Calculate slices
+            let currentOffset = 0;
+            const slices = [];
+            const activeLegend = [];
+
+            Object.entries(actionCounts).forEach(([action, count]) => {
+                if (count > 0) {
+                    const pct = (count / total) * 100;
+                    const end = currentOffset + pct;
+                    slices.push(`${colors[action]} ${currentOffset.toFixed(1)}% ${end.toFixed(1)}%`);
+                    currentOffset = end;
+                    
+                    activeLegend.push({
+                        label: labels[action],
+                        count: count,
+                        pct: pct.toFixed(0),
+                        color: colors[action]
+                    });
+                }
+            });
+
+            if (slices.length > 0) {
+                donut.style.background = `conic-gradient(${slices.join(', ')})`;
+                
+                // Show highest slice in middle
+                const highest = Object.entries(actionCounts).sort((a, b) => b[1] - a[1])[0];
+                const highestPct = ((highest[1] / total) * 100).toFixed(0);
+                pctText.innerText = `${highestPct}%`;
+                lblText.innerText = labels[highest[0]];
+            } else {
+                donut.style.background = 'conic-gradient(#94A3B8 0% 100%)';
+                pctText.innerText = '0%';
+                lblText.innerText = 'No actions';
+            }
+
+            // Render legend
+            activeLegend.forEach(item => {
+                const itemHtml = `
+                    <div class="flex items-center gap-2 font-label-sm text-label-sm">
+                        <span class="w-3 h-3 rounded-full" style="background-color: ${item.color}"></span>
+                        <span>${item.label} (${item.count} - ${item.pct}%)</span>
+                    </div>
+                `;
+                legend.insertAdjacentHTML('beforeend', itemHtml);
+            });
+        }
+
+        // Fetch Transactions
+        async function fetchTransactions() {
+            try {
+                const response = await fetch(`${API_BASE}/transactions`);
+                if (!response.ok) throw new Error('Failed to fetch transactions');
+                const transactions = await response.json();
+                
+                const tbody = document.getElementById('transactions-tbody');
+                tbody.innerHTML = '';
+                
+                if (transactions.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="p-8 text-center text-on-surface-variant">No transactions found. Click "Generate New Batch" to start.</td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                // Sort by ID descending to show newest first
+                transactions.sort((a, b) => b.id - a.id);
+
+                transactions.forEach(txn => {
+                    const failureName = FAILURE_NAMES[txn.failure_code] || txn.failure_code.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                    
+                    let badgeClass = 'bg-surface-variant text-on-surface-variant';
+                    let statusLabel = 'Failed';
+                    
+                    if (txn.status === 'recovered') {
+                        badgeClass = 'bg-success/15 text-success';
+                        statusLabel = 'Recovered';
+                    } else if (txn.status === 'lost') {
+                        badgeClass = 'bg-error/15 text-error';
+                        statusLabel = 'Lost';
+                    } else if (txn.status === 'pending') {
+                        badgeClass = 'bg-warning/15 text-warning';
+                        statusLabel = 'Pending';
+                    } else if (txn.status === 'escalated') {
+                        badgeClass = 'bg-[#adc6ff]/20 text-[#adc6ff] border border-[#adc6ff]/30';
+                        statusLabel = 'Escalated';
+                    }
+
+                    const rowHtml = `
+                        <tr class="border-b border-outline-variant hover:bg-[#334155]/50 transition-colors cursor-pointer group" onclick="toggleAuditTrail(this, ${txn.id})">
+                            <td class="p-3 flex items-center gap-2 text-primary">
+                                <span class="chevron-icon material-symbols-outlined text-[16px] transition-transform duration-200">chevron_right</span>
+                                TRX-${txn.id}
+                            </td>
+                            <td class="p-3 text-on-surface">Cust-${escapeHTML(txn.customer_id)}</td>
+                            <td class="p-3 text-on-surface">${formatINR(txn.amount)}</td>
+                            <td class="p-3 text-on-surface-variant">${escapeHTML(failureName)}</td>
+                            <td class="p-3">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full font-medium text-[11px] ${badgeClass}">${statusLabel}</span>
+                            </td>
+                            <td class="p-3 text-right text-on-surface-variant">${txn.attempts_count}</td>
+                        </tr>
+                    `;
+                    tbody.insertAdjacentHTML('beforeend', rowHtml);
+                });
+            } catch (error) {
+                console.error(error);
+                showToast(`Unable to load transactions: ${error.message}`);
+            }
+        }
+
+        // Toggle Expandable Audit Trail
+        async function toggleAuditTrail(row, transactionId) {
+            const chevron = row.querySelector('.chevron-icon');
+            const nextRow = row.nextElementSibling;
+            
+            // Check if already open
+            if (nextRow && nextRow.classList.contains('audit-trail-row')) {
+                nextRow.remove();
+                chevron.classList.remove('rotate-90');
+                row.classList.remove('bg-surface-variant/30');
+                return;
+            }
+            
+            // Rotate chevron and highlight row
+            chevron.classList.add('rotate-90');
+            row.classList.add('bg-surface-variant/30');
+            
+            // Insert loading placeholder
+            const auditRowHtml = `
+                <tr class="audit-trail-row border-b border-outline-variant bg-[#1a2436]">
+                    <td class="p-0" colspan="6">
+                        <div class="p-6">
+                            <h4 class="font-headline-sm text-headline-sm text-on-surface mb-4">Audit Trail</h4>
+                            <div class="audit-trail-timeline relative pl-6 border-l-2 border-outline-variant space-y-6">
+                                <div class="text-on-surface-variant text-sm flex items-center gap-2">
+                                    <span class="animate-pulse w-2 h-2 rounded-full bg-primary"></span>
+                                    Loading audit trail details...
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            row.insertAdjacentHTML('afterend', auditRowHtml);
+            
+            const timelineContainer = row.nextElementSibling.querySelector('.audit-trail-timeline');
+            
+            try {
+                const response = await fetch(`${API_BASE}/recovery/audit/${transactionId}`);
+                if (!response.ok) throw new Error('Failed to load audit trail');
+                const attempts = await response.json();
+                
+                timelineContainer.innerHTML = '';
+                
+                if (attempts.length === 0) {
+                    timelineContainer.innerHTML = `
+                        <div class="text-on-surface-variant text-sm">
+                            No recovery attempts have been run for this transaction yet.
+                        </div>
+                    `;
+                    return;
+                }
+                
+                attempts.forEach(attempt => {
+                    let dotColor = 'bg-warning';
+                    let badgeClass = 'bg-warning/15 text-warning';
+                    let outcomeText = 'Pending';
+                    
+                    if (attempt.outcome === 'recovered') {
+                        dotColor = 'bg-success';
+                        badgeClass = 'bg-success/15 text-success';
+                        outcomeText = 'Recovered';
+                    } else if (attempt.outcome === 'failed' || attempt.outcome === 'lost') {
+                        dotColor = 'bg-error';
+                        badgeClass = 'bg-error/15 text-error';
+                        outcomeText = attempt.outcome.charAt(0).toUpperCase() + attempt.outcome.slice(1);
+                    } else if (attempt.outcome === 'escalated') {
+                        dotColor = 'bg-[#adc6ff]';
+                        badgeClass = 'bg-[#adc6ff]/15 text-[#adc6ff]';
+                        outcomeText = 'Escalated';
+                    }
+
+                    const attemptTime = new Date(attempt.timestamp).toLocaleString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: 'numeric',
+                        minute: 'numeric',
+                        hour12: true
+                    });
+
+                    const attemptHtml = `
+                        <div class="relative">
+                            <div class="absolute -left-[31px] top-1 w-3 h-3 rounded-full ${dotColor} border-2 border-[#1a2436]"></div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="font-label-md text-label-md text-on-surface font-semibold">Attempt ${attempt.attempt_number}</span>
+                                <span class="text-on-surface-variant text-[10px]">${attemptTime}</span>
+                                <span class="ml-auto inline-flex items-center px-2 py-0.5 rounded-full ${badgeClass} text-[10px] font-medium">${outcomeText}</span>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2 bg-surface-container/30 p-3 rounded border border-outline-variant/10">
+                                <div>
+                                    <div class="font-label-sm text-label-sm text-on-surface-variant mb-1">Diagnosis</div>
+                                    <div class="text-on-surface font-body-sm text-body-sm">${escapeHTML(FAILURE_NAMES[attempt.diagnosis] || attempt.diagnosis)}</div>
+                                </div>
+                                <div>
+                                    <div class="font-label-sm text-label-sm text-on-surface-variant mb-1">Action</div>
+                                    <div class="text-on-surface font-body-sm text-body-sm">${escapeHTML(attempt.action_taken.replace(/_/g, ' '))}</div>
+                                </div>
+                                <div>
+                                    <div class="font-label-sm text-label-sm text-on-surface-variant mb-1">Reasoning</div>
+                                    <div class="text-on-surface font-body-sm text-body-sm">${escapeHTML(attempt.reasoning)}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    timelineContainer.insertAdjacentHTML('beforeend', attemptHtml);
+                });
+                
+            } catch (error) {
+                console.error(error);
+                timelineContainer.innerHTML = `
+                    <div class="text-error text-sm flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[16px]">error</span>
+                        Failed to load details: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        // Actions: Generate Batch
+        async function generateBatch() {
+            const scenario = document.getElementById('select-scenario').value;
+            setLoading('btn-generate', true, 'Generating...');
+            try {
+                const response = await fetch(`${API_BASE}/transactions/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ n: 60, scenario: scenario })
+                });
+                
+                if (!response.ok) throw new Error('Failed to generate batch');
+                
+                showToast('Successfully generated a new batch of 60 transactions!', 'success');
+                
+                // Refresh dashboard elements
+                await Promise.all([fetchSummary(), fetchTransactions()]);
+                
+            } catch (error) {
+                console.error(error);
+                showToast(`Failed to generate new batch: ${error.message}`);
+            } finally {
+                setLoading('btn-generate', false, 'Generate New Batch');
+            }
+        }
+
+        // Actions: Run Recovery Batch
+        async function runRecoveryBatch() {
+            const threshold = document.getElementById('slider-threshold').value;
+            setLoading('btn-run-recovery', true, 'Running Recovery...');
+            try {
+                const response = await fetch(`${API_BASE}/recovery/run-batch?confidence_threshold=${threshold}`, {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) throw new Error('Failed to run recovery batch');
+                const results = await response.json();
+                
+                showToast(`Recovery run complete! Processed ${results.length} transactions.`, 'success');
+                
+                // Refresh dashboard elements
+                await Promise.all([fetchSummary(), fetchTransactions()]);
+                
+            } catch (error) {
+                console.error(error);
+                showToast(`Failed to run recovery batch: ${error.message}`);
+            } finally {
+                setLoading('btn-run-recovery', false, 'Run Recovery Batch');
+            }
+        }
+
+        // Actions: Run Until Resolved
+        async function runUntilResolved() {
+            const threshold = document.getElementById('slider-threshold').value;
+            setLoading('btn-run-until-resolved', true, 'Running...');
+            try {
+                const response = await fetch(`${API_BASE}/recovery/run-until-resolved?confidence_threshold=${threshold}`, {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) throw new Error('Failed to run recovery loops');
+                const results = await response.json();
+                
+                showToast(`Recovery run until resolved complete! Processed ${results.length} attempts.`, 'success');
+                
+                // Refresh dashboard elements
+                await Promise.all([fetchSummary(), fetchTransactions()]);
+                
+            } catch (error) {
+                console.error(error);
+                showToast(`Failed to run recovery until resolved: ${error.message}`);
+            } finally {
+                setLoading('btn-run-until-resolved', false, 'Run Until Resolved');
+            }
+        }
+
+        // Export data to CSV
+        async function exportToCSV() {
+            try {
+                const response = await fetch(`${API_BASE}/transactions`);
+                if (!response.ok) throw new Error('Failed to fetch transactions');
+                const transactions = await response.json();
+                
+                if (transactions.length === 0) {
+                    showToast('No transactions available to export.');
+                    return;
+                }
+                
+                // Define CSV headers
+                const headers = ['Transaction ID', 'Customer ID', 'Amount', 'Failure Code', 'Status', 'Attempts Count', 'Promise To Pay', 'Promised Amount'];
+                
+                // Map data to CSV rows
+                const rows = transactions.map(t => [
+                    `TRX-${t.id}`,
+                    t.customer_id,
+                    t.amount,
+                    t.failure_code,
+                    t.status,
+                    t.attempts_count,
+                    t.promise_to_pay ? 'True' : 'False',
+                    t.promised_amount || 0
+                ]);
+                
+                // Combine headers and rows
+                const csvContent = [
+                    headers.join(','),
+                    ...rows.map(row => row.map(val => {
+                        const stringVal = String(val);
+                        if (stringVal.includes(',') || stringVal.includes('"') || stringVal.includes('\n')) {
+                            return `"${stringVal.replace(/"/g, '""')}"`;
+                        }
+                        return stringVal;
+                    }).join(','))
+                ].join('\n');
+                
+                // Create blob and download link
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', `recovery_transactions_${new Date().toISOString().slice(0, 10)}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showToast('CSV export downloaded successfully!', 'success');
+            } catch (error) {
+                console.error(error);
+                showToast(`Failed to export CSV: ${error.message}`);
+            }
+        }
+
+        // Initial Load
+        window.addEventListener('DOMContentLoaded', () => {
+            fetchSummary();
+            fetchTransactions();
+        });
+    </script>
+</body>
+</html>

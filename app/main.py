@@ -2,10 +2,27 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.core.database import Base, engine
+from app.core.database import Base, engine, SessionLocal
+from app.models.models import Transaction
+from app.services.data_generator import generate_batch, SCENARIOS
+from app.services.engine import run_until_resolved
 from app.routers import transactions, recovery, dashboard
 
 Base.metadata.create_all(bind=engine)
+
+# Auto-seed database if empty (ideal for ephemeral hackathon deployments)
+db = SessionLocal()
+try:
+    if db.query(Transaction).count() == 0:
+        print("Database is empty. Auto-seeding default demo dataset...")
+        generate_batch(db, n=60, mix=SCENARIOS["baseline"], seed=42)
+        run_until_resolved(db)
+        print("Auto-seeding complete.")
+except Exception as e:
+    print(f"Auto-seeding bypassed/failed: {e}")
+finally:
+    db.close()
+
 
 app = FastAPI(
     title="Recovery Copilot API",

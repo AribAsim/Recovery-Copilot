@@ -1,0 +1,11 @@
+venv/
+.git/
+.env
+recovery.db
+*.db
+__pycache__/
+*.pyc
+.gitignore
+Dockerfile
+.dockerignore
+Procfile

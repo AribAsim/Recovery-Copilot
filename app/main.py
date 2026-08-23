@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.config import settings
 from app.core.database import Base, engine
 from app.routers import transactions, recovery, dashboard
 
@@ -14,8 +15,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    # TODO: Restrict allow_origins to the deployed frontend origin before final submission
-    allow_origins=["*"],
+    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

@@ -297,6 +297,26 @@ Runs recovery cycles across 4 distinct failure distributions to prove the engine
 
 ## Roadmap (Intentionally Deferred)
 
-1. **Real SMS/Email delivery**: Deferred to avoid Twilio/SendGrid dependency during judging. LLM-generated messages appear in the audit trail to prove functional correctness.
-2. **Natural-language dashboard queries**: Deferred — text-to-SQL introduces prompt injection risk. Deterministic aggregations are preferred.
-3. **Automated cron reporting**: Deferred — requires Celery + broker infrastructure. Current API exposes summaries synchronously.
+1. **Real payment gateway execution**: Deferred to avoid introducing real financial side effects during judging. The current execution adapter uses deterministic simulation while preserving the same policy → executor boundary.
+
+2. **Real SMS/Email delivery**: Deferred to avoid Twilio/SendGrid dependency during judging. LLM-generated recovery messages are generated and recorded in the audit trail to demonstrate the complete decision flow.
+
+3. **Natural-language dashboard queries**: Deferred — text-to-SQL introduces prompt-injection and data-access risks. Deterministic aggregations and existing API endpoints are preferred for the current scope.
+
+4. **Automated cron reporting**: Deferred — requires Celery + broker infrastructure and persistent scheduling. The current API exposes recovery summaries and outcome datasets synchronously.
+
+5. **Online model retraining**: Deferred — continuously retraining recovery models from live outcomes requires a validated production dataset and model evaluation pipeline. The current system records structured outcome intelligence for future training.
+
+6. **Adaptive policy learning**: Deferred — automatically modifying financial safety thresholds based on observed outcomes would require policy versioning, simulation, approval workflows, and rollback controls. Current policies remain deterministic and explicitly controlled.
+
+7. **Human-in-the-loop operations console**: Deferred — the current system supports `escalate_human` as a controlled execution outcome, while a dedicated review queue, approval workflow, and SLA management can be added as a production layer.
+
+8. **Production-scale distributed workers**: Deferred — the current implementation uses thread-based parallel processing for independent transactions. Distributed queues, workers, Redis/Kafka, and PostgreSQL are reserved for production-scale deployment.
+
+9. **Advanced customer-level personalization**: Deferred — customer recovery profiles require longitudinal payment history and additional privacy/data-governance controls. Current decisioning operates primarily on transaction and recovery-attempt context.
+
+10. **Live provider optimization**: Deferred — dynamic routing between OpenRouter, NVIDIA NIM, Groq, and local models based on latency, cost, and quality requires production telemetry. The current fallback chain already provides provider resilience without adding routing complexity.
+
+11. **Real-time anomaly detection**: Deferred — detecting unusual recovery rates, provider failures, or policy violations requires continuous monitoring and alerting infrastructure. Current benchmarking and audit data provide the foundation for this capability.
+
+12. **Full compliance and governance layer**: Deferred — immutable audit storage, model/version provenance, policy versioning, retention controls, and formal compliance reporting are production requirements beyond the judging prototype.

@@ -871,23 +871,21 @@
         }
 
         async function resetDemoTxn() {
-            setLoading('btn-demo-step', true, 'Checking demo state...');
+            setLoading('btn-demo-step', true, 'Resetting demo state...');
             try {
-                // Reload story — do NOT call generate which appends 60 random txns
-                // and pollutes the DB with transactions that shadow the canonical demo.
-                // The canonical demo txn (demo_pay_ref_4500) must be seeded once via:
-                //   python scripts/seed_demo.py
-                // After seeding, the demo txn persists and only its recovery attempts
-                // need to be cleared (which requires re-running seed_demo.py again).
+                const response = await fetch(`${API_BASE}/transactions/reset-demo`, { method: 'POST' });
+                if (!response.ok) throw new Error('Failed to reset demo transaction');
+                
                 await refreshDemoStory();
-                showToast('Demo state refreshed. Run seed_demo.py to fully reset attempts.', 'success');
+                showToast('Demo transaction and attempts reset successfully!', 'success');
             } catch (err) {
                 console.error(err);
-                showToast(`Unable to refresh demo: ${err.message}`);
+                showToast(`Unable to reset demo: ${err.message}`);
             } finally {
                 setLoading('btn-demo-step', false, 'RUN NEXT RECOVERY');
             }
         }
+
 
         async function runDemoTxnStep() {
             setLoading('btn-demo-step', true, 'Evaluating recovery...');

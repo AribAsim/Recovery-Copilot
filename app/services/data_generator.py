@@ -281,3 +281,46 @@ def generate_invoice_batch(db: Session, n: int = 20, seed: int | None = None):
     for inv in created:
         db.refresh(inv)
     return created
+
+
+def reset_demo_transaction(db: Session) -> Transaction:
+    from app.models.models import Transaction, RecoveryAttempt
+    
+    demo_payment_ref = "demo_pay_ref_4500"
+    
+    # 1. Clean up any existing demo state to make it idempotent
+    old_txns = db.query(Transaction).filter(Transaction.payment_id == demo_payment_ref).all()
+    for old_txn in old_txns:
+        # Delete corresponding attempts to satisfy foreign key constraint
+        db.query(RecoveryAttempt).filter(RecoveryAttempt.transaction_id == old_txn.id).delete()
+        db.delete(old_txn)
+    
+    db.commit()
+
+    # 2. Insert fresh fixed transaction
+    demo_txn = Transaction(
+        customer_id="cust_demo_01",
+        amount=4500.0,
+        failure_code="bank_server_down",
+        raw_failure_text="Bank server response timed out during authorization code lookup",
+        status="failed",
+        attempts_count=0,
+        promise_to_pay=False,
+        promised_amount=0.0,
+        payment_id=demo_payment_ref,
+        order_id="demo_order_101",
+        currency="INR",
+        payment_method="card",
+        failure_source="bank",
+        failure_step="payment_authorization",
+        failure_reason="network_timeout",
+        gateway="razorpay",
+        bank="HDFC",
+        checkout_state="failed"
+    )
+    
+    db.add(demo_txn)
+    db.commit()
+    db.refresh(demo_txn)
+    return demo_txn
+

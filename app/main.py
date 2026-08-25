@@ -13,15 +13,24 @@ Base.metadata.create_all(bind=engine)
 # Auto-seed database if empty (ideal for ephemeral hackathon deployments)
 db = SessionLocal()
 try:
+    from app.services.data_generator import reset_demo_transaction
+    demo_exists = db.query(Transaction).filter(Transaction.payment_id == "demo_pay_ref_4500").first() is not None
+
     if db.query(Transaction).count() == 0:
         print("Database is empty. Auto-seeding default demo dataset...")
         generate_batch(db, n=60, mix=SCENARIOS["baseline"], seed=42)
         run_until_resolved(db)
         print("Auto-seeding complete.")
+
+    if not demo_exists:
+        print("Demo transaction missing. Auto-seeding demo transaction...")
+        reset_demo_transaction(db)
+        print("Demo transaction auto-seeded successfully.")
 except Exception as e:
     print(f"Auto-seeding bypassed/failed: {e}")
 finally:
     db.close()
+
 
 
 app = FastAPI(

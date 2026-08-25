@@ -26,12 +26,26 @@ def fixture_db_session():
         Base.metadata.drop_all(bind=engine)
 
 @pytest.fixture(autouse=True)
-def setup_api_key():
+def setup_test_env(monkeypatch):
     old_key = settings.OPENROUTER_API_KEY
     settings.OPENROUTER_API_KEY = "test-mock-key"
     settings.DIAGNOSIS_MODE = "llm"
+
+    # Mock datetime to ensure it falls within the compliance operating window (8 AM to 8 PM)
+    import datetime as dt
+    class MockDatetime:
+        @classmethod
+        def utcnow(cls):
+            return dt.datetime(2026, 8, 26, 12, 0, 0)
+
+        @classmethod
+        def now(cls, tz=None):
+            return dt.datetime(2026, 8, 26, 12, 0, 0)
+
+    monkeypatch.setattr("app.services.engine.datetime", MockDatetime)
     yield
     settings.OPENROUTER_API_KEY = old_key
+
 
 
 def test_1_valid_ai_response(db_session, monkeypatch):

@@ -2,6 +2,7 @@ import random
 from concurrent.futures import ThreadPoolExecutor
 
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from app.core.config import settings
 from app.models.models import Transaction, Invoice, RecoveryAttempt
@@ -24,7 +25,6 @@ SIMULATED_SUCCESS_RATE = {
 def process_transaction(db: Session, txn: Transaction, confidence_threshold: float | None = None) -> RecoveryAttempt:
     """Runs ONE recovery attempt for a transaction and persists the audit trail."""
     import json
-    from datetime import datetime
     from app.services.policy_engine import evaluate as evaluate_policy, PolicyContext
 
     # Construct Policy Context

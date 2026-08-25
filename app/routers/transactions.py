@@ -19,3 +19,10 @@ def generate(req: GenerateBatchRequest, db: Session = Depends(get_db)):
 @router.get("", response_model=list[TransactionOut])
 def list_transactions(db: Session = Depends(get_db)):
     return db.query(Transaction).all()
+
+
+@router.post("/reset-demo", response_model=TransactionOut)
+def reset_demo(db: Session = Depends(get_db)):
+    from app.services.data_generator import reset_demo_transaction
+    return reset_demo_transaction(db)
+

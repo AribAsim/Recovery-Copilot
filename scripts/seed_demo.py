@@ -7,7 +7,8 @@ import os
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from app.core.database import SessionLocal
+# Imported 'engine' and 'Base' alongside 'SessionLocal' to handle table creation
+from app.core.database import SessionLocal, engine, Base
 from app.models.models import Transaction, RecoveryAttempt
 
 def seed_demo_txn():
@@ -57,4 +58,7 @@ def seed_demo_txn():
         db.close()
 
 if __name__ == "__main__":
+    # Ensure all tables are created in the database before querying or inserting data
+    Base.metadata.create_all(bind=engine)
+    
     seed_demo_txn()

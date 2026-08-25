@@ -70,7 +70,7 @@ def generate_message(action: str, amount: float) -> str:
                     "messages": [{"role": "user", "content": prompt}],
                     "max_tokens": 60,
                 },
-                timeout=10.0,
+                timeout=6.0,
             )
             resp.raise_for_status()
             content = resp.json()["choices"][0]["message"]["content"].strip()

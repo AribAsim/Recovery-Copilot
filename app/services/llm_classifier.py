@@ -81,7 +81,7 @@ def classify(raw_text: str, fallback_code: str | None = None) -> dict:
                     "response_format": {"type": "json_object"},
                     "max_tokens": 150,
                 },
-                timeout=10.0,
+                timeout=6.0,
             )
             resp.raise_for_status()
             data = resp.json()
@@ -118,8 +118,9 @@ def classify(raw_text: str, fallback_code: str | None = None) -> dict:
             }
         except Exception as e:
             import sys
-            # NEVER log or output raw responses/exceptions to user or reasoning
-            print(f"Internal classifier error logged for model {provider['model']}: {type(e).__name__}", file=sys.stderr)
+            status = getattr(getattr(e, 'response', None), 'status_code', None)
+            status_info = f" (HTTP {status})" if status else ""
+            print(f"Internal classifier error logged for model {provider['model']}: {type(e).__name__}{status_info}", file=sys.stderr)
             continue
             
     # Fallback to deterministic classifier on closest-matching clean failure_code if all providers failed

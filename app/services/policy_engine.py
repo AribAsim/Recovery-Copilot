@@ -22,7 +22,8 @@ class PolicyDecision(BaseModel):
     override_reason: Optional[str] = None
     rules_evaluated: List[RuleEvaluation]
     rules_triggered: List[str]
-    blocked: bool
+    blocked: bool          # any rule was triggered / action was overridden
+    hard_blocked: bool = False  # executor MUST NOT run (compliance window, max attempts, ineligible, malformed)
 
 # Explicit ALLOWED_ACTIONS list
 ALLOWED_ACTIONS = {
@@ -79,7 +80,8 @@ def evaluate(
             override_reason=f"AI output rejected: {malformed_detail}",
             rules_evaluated=rules_eval,
             rules_triggered=rules_triggered,
-            blocked=True
+            blocked=True,
+            hard_blocked=True,
         )
 
     # 2. Transaction Eligibility check (RULE 4)
@@ -98,7 +100,8 @@ def evaluate(
             override_reason="Transaction not in recoverable state.",
             rules_evaluated=rules_eval,
             rules_triggered=rules_triggered,
-            blocked=True
+            blocked=True,
+            hard_blocked=True,
         )
 
     # 3. Max Attempts Enforcement (RULE 1)
@@ -118,7 +121,8 @@ def evaluate(
             override_reason="Maximum retry limit reached.",
             rules_evaluated=rules_eval,
             rules_triggered=rules_triggered,
-            blocked=True
+            blocked=True,
+            hard_blocked=True,
         )
 
     # 4. Compliance Window checking (RULE 9)
@@ -129,12 +133,21 @@ def evaluate(
         passed=within_window,
         detail=f"Current hour {current_hour}:00 is within allowed operating window ({context.operating_window_start_hour}:00 - {context.operating_window_end_hour}:00)." if within_window else f"Out of operating window hours: {current_hour}:00"
     ))
+    # hard_blocked tracker — set True only for compliance window violation
+    hard_blocked = False
     if not within_window:
         rules_triggered.append("compliance_operating_window")
-        # Route to escalate_human or delay depending on preference, here delay or no_action is safe
-        approved_action = "retry_after_delay"
-        was_overridden = True
-        override_reason = "Operating hours violation. Automated action scheduled for later."
+        # Compliance window is a HARD block — early return, executor must not run
+        return PolicyDecision(
+            approved_action="no_action",
+            original_recommendation=recommendation,
+            was_overridden=True,
+            override_reason=f"Out of operating window hours: {current_hour}:00. Execution deferred.",
+            rules_evaluated=rules_eval,
+            rules_triggered=rules_triggered,
+            blocked=True,
+            hard_blocked=True,
+        )
 
     # 5. Promise to Pay check (RULE 8)
     has_promise = getattr(transaction, "promise_to_pay", False)
@@ -216,5 +229,6 @@ def evaluate(
         override_reason=override_reason,
         rules_evaluated=rules_eval,
         rules_triggered=rules_triggered,
-        blocked=len(rules_triggered) > 0 or approved_action != recommendation
+        blocked=len(rules_triggered) > 0 or approved_action != recommendation,
+        hard_blocked=hard_blocked,
     )

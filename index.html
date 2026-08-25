@@ -315,7 +315,15 @@
                         </div>
                     </div>
 
-                    <div class="border-t border-outline-variant/10 pt-3 flex items-center gap-2 text-xs text-on-surface-variant">
+                    <div id="executor-reason-box" class="hidden mb-3 p-3 rounded-lg bg-error/10 border border-error/20 text-xs text-error flex items-start gap-2">
+                        <span class="material-symbols-outlined text-sm mt-0.5">info</span>
+                        <div>
+                            <span class="font-bold">Policy Block:</span>
+                            <span id="executor-reason-text">Policy did not authorize execution.</span>
+                        </div>
+                    </div>
+
+                    <div id="executor-default-footer" class="border-t border-outline-variant/10 pt-3 flex items-center gap-2 text-xs text-on-surface-variant">
                         <span class="material-symbols-outlined text-[16px] text-primary">gavel</span>
                         <span>Only the policy-approved action can reach the executor.</span>
                     </div>
@@ -626,6 +634,7 @@
             attempts.forEach((attempt, index) => {
                 const isFirst = index === 0;
                 const isLast = index === attempts.length - 1;
+                const isBlocked = attempt.policy_decision === 'REJECTED';
 
                 let outcomeText = 'Failed';
                 let outcomeClass = 'text-error';
@@ -635,37 +644,45 @@
                 } else if (attempt.outcome === 'escalated') {
                     outcomeText = 'Escalated';
                     outcomeClass = 'text-primary';
+                } else if (attempt.outcome === 'skipped') {
+                    outcomeText = '⏸ Deferred (Policy Block)';
+                    outcomeClass = 'text-warning';
                 }
 
-                let policyIcon = attempt.policy_decision === 'APPROVED' ? 'check_circle' : 'cancel';
-                let policyClass = attempt.policy_decision === 'APPROVED' ? 'text-success' : 'text-error';
+                let policyIcon = isBlocked ? 'cancel' : 'check_circle';
+                let policyClass = isBlocked ? 'text-error' : 'text-success';
+
+                const executionLabel = isBlocked
+                    ? `<span class="text-warning font-bold">SKIPPED</span>`
+                    : `<span class="text-white">${escapeHTML((attempt.action_taken || 'no action').replace(/_/g, ' '))}</span>`;
 
                 let nodeHtml = `
                     <div class="relative pl-10 timeline-line pb-6">
-                        <div class="absolute left-0 top-0.5 w-8 h-8 rounded-full bg-surface-variant flex items-center justify-center border border-outline-variant font-bold text-xs text-white z-10">
+                        <div class="absolute left-0 top-0.5 w-8 h-8 rounded-full ${isBlocked ? 'bg-error/20 border-error/40' : 'bg-surface-variant border-outline-variant'} flex items-center justify-center border font-bold text-xs text-white z-10">
                             ${attempt.attempt_number}
                         </div>
                         <div class="flex flex-col gap-2">
                             <div class="flex justify-between items-center">
-                                <h4 class="font-semibold text-white text-sm uppercase tracking-wider">Attempt ${attempt.attempt_number}</h4>
+                                <h4 class="font-semibold text-white text-sm uppercase tracking-wider">Attempt ${attempt.attempt_number}${isBlocked ? ' <span class="text-[10px] text-error font-mono ml-1">[BLOCKED]</span>' : ''}</h4>
                                 <span class="text-[10px] text-on-surface-variant font-mono">${new Date(attempt.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
 
-                            <div class="bg-[#1a2436] rounded-lg border border-outline-variant/20 p-3 flex flex-col gap-2.5">
+                            <div class="bg-[#1a2436] rounded-lg border ${isBlocked ? 'border-error/30' : 'border-outline-variant/20'} p-3 flex flex-col gap-2.5">
                                 <div>
                                     <span class="text-[10px] uppercase text-on-surface-variant font-mono tracking-wider">AI Recommendation</span>
-                                    <div class="text-xs font-bold text-white mt-0.5 font-mono">${escapeHTML(attempt.ai_recommendation.replace(/_/g, ' '))}</div>
+                                    <div class="text-xs font-bold text-white mt-0.5 font-mono">${escapeHTML((attempt.ai_recommendation || 'unknown').replace(/_/g, ' '))}</div>
                                 </div>
                                 <div class="flex justify-between border-t border-outline-variant/10 pt-2 text-[11px]">
                                     <span class="text-on-surface-variant flex items-center gap-1">
                                         <span class="material-symbols-outlined text-[14px] ${policyClass}">${policyIcon}</span>
-                                        Policy: <span class="font-bold ${policyClass}">${attempt.policy_decision}</span>
+                                        Policy: <span class="font-bold ${policyClass}">${isBlocked ? 'BLOCKED' : 'APPROVED'}</span>
                                     </span>
-                                    <span class="text-on-surface-variant font-mono">Execution: <span class="text-white">${escapeHTML(attempt.action_taken.replace(/_/g, ' '))}</span></span>
+                                    <span class="text-on-surface-variant font-mono">Execution: ${executionLabel}</span>
                                 </div>
+                                ${isBlocked ? `<div class="text-[10px] text-error/80 font-mono border-t border-error/10 pt-1.5">Reason: ${escapeHTML(attempt.policy_override_reason || attempt.policy_block_reason || 'Policy block')}</div>` : ''}
                                 <div class="flex justify-between border-t border-outline-variant/10 pt-2 text-[11px]">
                                     <span class="text-on-surface-variant">Outcome: <span class="font-bold ${outcomeClass}">${outcomeText}</span></span>
-                                    <span class="text-on-surface-variant font-mono font-semibold ${attempt.net_recovery >= 0 ? 'text-success' : 'text-error'}">${formatINR(attempt.net_recovery || 0)}</span>
+                                    <span class="text-on-surface-variant font-mono font-semibold ${(attempt.net_recovery || 0) >= 0 && !isBlocked ? 'text-success' : 'text-on-surface-variant'}">${isBlocked ? '₹0' : formatINR(attempt.net_recovery || 0)}</span>
                                 </div>
                             </div>
                         </div>
@@ -674,12 +691,20 @@
 
                 container.insertAdjacentHTML('beforeend', nodeHtml);
 
-                // Add transition explanation
+                // Add transition explanation between attempts
                 if (!isLast) {
+                    const prevOutcome = attempt.outcome;
+                    const transitionMsg = prevOutcome === 'skipped'
+                        ? 'POLICY GATE BLOCKED — RECOVERY DEFERRED TO NEXT ATTEMPT'
+                        : 'RECOVERY CONTEXT UPDATED: "The previous recovery action failed."';
+                    const transitionColor = prevOutcome === 'skipped' ? 'text-warning' : 'text-indigo-300';
+                    const transitionBg = prevOutcome === 'skipped'
+                        ? 'bg-warning/5 border-warning/10'
+                        : 'bg-indigo-950/20 border-indigo-500/10';
                     let transitionHtml = `
                         <div class="relative pl-10 pb-4">
-                            <div class="bg-indigo-950/20 border border-indigo-500/10 rounded-lg p-2 text-center text-[10px] text-indigo-300 font-medium">
-                                RECOVERY CONTEXT UPDATED: "The previous recovery action failed."
+                            <div class="${transitionBg} border rounded-lg p-2 text-center text-[10px] ${transitionColor} font-medium">
+                                ${transitionMsg}
                             </div>
                         </div>
                     `;
@@ -744,18 +769,37 @@
                 }
             }
 
-            // 3. Executor
-            document.getElementById('executor-action-val').innerText = escapeHTML(attempt.action_taken.replace(/_/g, ' '));
-            document.getElementById('executor-result-val').innerText = attempt.outcome.charAt(0).toUpperCase() + attempt.outcome.slice(1);
+            // 3. Executor — enforce invariant: REJECTED policy → SKIPPED executor
+            const isBlocked = attempt.policy_decision === 'REJECTED';
+            const executorReasonBox = document.getElementById('executor-reason-box');
+            const executorDefaultFooter = document.getElementById('executor-default-footer');
 
-            // 4. Next Best Action (Stateful context mapping prediction logic)
+            if (isBlocked) {
+                document.getElementById('executor-action-val').innerText = 'SKIPPED';
+                document.getElementById('executor-result-val').innerText = 'Policy did not authorize execution';
+                document.getElementById('executor-reason-text').innerText =
+                    attempt.policy_override_reason || attempt.policy_block_reason || 'Policy gate blocked execution.';
+                executorReasonBox.classList.remove('hidden');
+                executorDefaultFooter.classList.add('hidden');
+            } else {
+                document.getElementById('executor-action-val').innerText = escapeHTML((attempt.action_taken || 'no action').replace(/_/g, ' '));
+                document.getElementById('executor-result-val').innerText = attempt.outcome.charAt(0).toUpperCase() + attempt.outcome.slice(1);
+                executorReasonBox.classList.add('hidden');
+                executorDefaultFooter.classList.remove('hidden');
+            }
+
+            // 4. Next Best Action
             if (txn.status === 'recovered' || txn.status === 'lost') {
                 document.getElementById('next-action-val').innerText = 'Process Complete';
                 document.getElementById('next-prob-val').innerText = '0%';
                 document.getElementById('next-ev-val').innerText = '₹0';
+            } else if (isBlocked) {
+                // Policy blocked: show that we need to re-run for the next authorized window
+                document.getElementById('next-action-val').innerText = escapeHTML((attempt.ai_recommendation || 'run pipeline').replace(/_/g, ' '));
+                document.getElementById('next-prob-val').innerText = `${Math.round((attempt.ai_predicted_probability || 0) * 100)}%`;
+                document.getElementById('next-ev-val').innerText = formatINR(attempt.expected_recovery_value || 0);
             } else {
-                // Approximate what next action is based on rules or prediction (read from latest attempt predicted fields)
-                document.getElementById('next-action-val').innerText = escapeHTML(attempt.ai_recommendation.replace(/_/g, ' '));
+                document.getElementById('next-action-val').innerText = escapeHTML((attempt.ai_recommendation || 'run pipeline').replace(/_/g, ' '));
                 document.getElementById('next-prob-val').innerText = `${Math.round((attempt.ai_predicted_probability || 0) * 100)}%`;
                 document.getElementById('next-ev-val').innerText = formatINR(attempt.expected_recovery_value || 0);
             }
@@ -777,7 +821,7 @@
                         <span class="text-2xl font-bold text-success">${formatINR(attempt.net_recovery || 0)}</span>
                     </div>
                     <div class="text-xs text-on-surface-variant border-t border-success/20 pt-3 mt-1 flex items-center justify-between">
-                        <span>Recovered via: <span class="font-bold text-white">${escapeHTML(attempt.action_taken.replace(/_/g, ' '))}</span></span>
+                        <span>Recovered via: <span class="font-bold text-white">${escapeHTML((attempt.action_taken || '').replace(/_/g, ' '))}</span></span>
                         <span>Total cost: <span class="font-mono">${formatINR(attempt.cost || 0)}</span></span>
                     </div>
                 `;
@@ -804,6 +848,27 @@
                 `;
                 setLoading('btn-demo-step', true, 'LOST ✕');
                 document.getElementById('btn-demo-step').className = 'flex-[1.5] bg-error/25 border border-error/30 text-error py-2.5 rounded-lg font-label-md text-label-md transition-all cursor-not-allowed flex items-center justify-center gap-2';
+            } else if (attempt.outcome === 'skipped') {
+                // Policy blocked — show DEFERRED state clearly
+                outcomeContainer.className = 'bg-warning/10 border border-warning/30 rounded-xl p-6 flex flex-col gap-3 transition-all duration-300';
+                outcomeContainer.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-bold bg-warning/15 text-warning border border-warning/30 uppercase tracking-wider">
+                            <span class="w-1.5 h-1.5 rounded-full bg-warning mr-1.5"></span>
+                            ⏸ RECOVERY DEFERRED
+                        </span>
+                        <span class="text-xs font-bold text-warning font-mono">₹0 recovered</span>
+                    </div>
+                    <div class="text-xs text-on-surface-variant mt-2 leading-relaxed">
+                        <span class="font-bold text-warning">Policy Gate Blocked Execution.</span><br>
+                        ${escapeHTML(attempt.policy_override_reason || attempt.policy_block_reason || 'Policy did not authorize execution.')}
+                    </div>
+                    <div class="text-xs text-on-surface-variant border-t border-warning/20 pt-3 mt-1">
+                        Click <strong class="text-white">RUN NEXT RECOVERY</strong> to run the next authorized attempt.
+                    </div>
+                `;
+                setLoading('btn-demo-step', false, 'RUN NEXT RECOVERY');
+                document.getElementById('btn-demo-step').className = 'flex-[1.5] bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg font-label-md text-label-md transition-all shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2';
             } else {
                 outcomeContainer.className = 'bg-warning/10 border border-warning/30 rounded-xl p-6 flex flex-col gap-3 transition-all duration-300';
                 outcomeContainer.innerHTML = `

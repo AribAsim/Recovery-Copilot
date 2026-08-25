@@ -39,3 +39,18 @@ def decide_action(diagnosis: str, confidence: float, threshold: float) -> tuple[
         )
     action = RULES.get(diagnosis, "escalate_human")
     return action, REASON_TEXT.get(action, "Default safe path: escalate.")
+
+
+B2B_ESCALATION_RULES = [
+    {"min": 0, "max": 15, "action": "send_reminder", "reasoning": "Invoice is recently overdue (0-15 days) — sending a friendly payment reminder."},
+    {"min": 16, "max": 30, "action": "send_formal_notice", "reasoning": "Invoice is moderately overdue (16-30 days) — sending a formal dunning notice."},
+    {"min": 31, "max": 60, "action": "escalate_human", "reasoning": "Invoice is seriously overdue (31-60 days) — routing to human collection agent."},
+    {"min": 61, "max": 999999, "action": "escalate_legal_review", "reasoning": "Invoice is severely overdue (60+ days) — escalating to legal team for review."}
+]
+
+
+def decide_b2b_action(days_overdue: int) -> tuple[str, str]:
+    for rule in B2B_ESCALATION_RULES:
+        if rule["min"] <= days_overdue <= rule["max"]:
+            return rule["action"], rule["reasoning"]
+    return "escalate_legal_review", "Invoice is severely overdue (60+ days) — escalating to legal team for review."

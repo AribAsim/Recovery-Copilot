@@ -10,12 +10,12 @@ def get_summary(db: Session) -> dict:
     lost = db.query(Transaction).filter(Transaction.status == "lost").count()
     escalated_terminal = db.query(Transaction).filter(Transaction.status == "escalated").count()
     pending = db.query(Transaction).filter(Transaction.status == "pending").count()
-    escalated = db.query(RecoveryAttempt).filter(RecoveryAttempt.escalated == True).count()  # noqa: E712
+    escalated = db.query(RecoveryAttempt).filter(RecoveryAttempt.escalated == True, RecoveryAttempt.transaction_id.isnot(None)).count()  # noqa: E712
     promise_to_pay_count = db.query(Transaction).filter(Transaction.promise_to_pay == True).count()  # noqa: E712
     promised_amount_total = db.query(func.sum(Transaction.promised_amount)).filter(Transaction.promise_to_pay == True).scalar() or 0.0
 
     gross_recovered = sum(t.amount for t in recovered)
-    total_cost = db.query(func.sum(RecoveryAttempt.cost)).scalar() or 0.0
+    total_cost = db.query(func.sum(RecoveryAttempt.cost)).filter(RecoveryAttempt.transaction_id.isnot(None)).scalar() or 0.0
     net_recovered = gross_recovered - total_cost
 
     at_risk = db.query(func.sum(Transaction.amount)).filter(
@@ -33,7 +33,7 @@ def get_summary(db: Session) -> dict:
         }
 
     # Action breakdown for donut chart
-    attempts = db.query(RecoveryAttempt.action_taken).all()
+    attempts = db.query(RecoveryAttempt.action_taken).filter(RecoveryAttempt.transaction_id.isnot(None)).all()
     action_counts = {
         "retry": 0,
         "nudge": 0,

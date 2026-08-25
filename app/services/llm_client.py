@@ -21,10 +21,37 @@ TEMPLATES = {
 }
 
 
+def is_valid_key(key: str) -> bool:
+    if not key or not key.strip():
+        return False
+    normalized = key.strip().lower()
+    return "your_" not in normalized and "placeholder" not in normalized
+
+
 def generate_message(action: str, amount: float) -> str:
     fallback = TEMPLATES.get(action, "We're following up on your payment.").format(amount=amount)
 
-    if not settings.OPENROUTER_API_KEY:
+    providers = []
+    if is_valid_key(settings.OPENROUTER_API_KEY):
+        providers.append({
+            "url": settings.OPENROUTER_URL,
+            "key": settings.OPENROUTER_API_KEY,
+            "model": settings.OPENROUTER_MODEL
+        })
+    if is_valid_key(settings.NVIDIA_API_KEY):
+        providers.append({
+            "url": settings.NVIDIA_API_URL,
+            "key": settings.NVIDIA_API_KEY,
+            "model": settings.NVIDIA_MODEL
+        })
+    if is_valid_key(settings.GROQ_API_KEY):
+        providers.append({
+            "url": settings.GROQ_API_URL,
+            "key": settings.GROQ_API_KEY,
+            "model": settings.GROQ_MODEL
+        })
+
+    if not providers:
         return fallback
 
     prompt = (
@@ -33,20 +60,25 @@ def generate_message(action: str, amount: float) -> str:
         f"No greeting, no sign-off, just the message."
     )
 
-    try:
-        resp = httpx.post(
-            settings.OPENROUTER_URL,
-            headers={"Authorization": f"Bearer {settings.OPENROUTER_API_KEY}"},
-            json={
-                "model": settings.OPENROUTER_MODEL,
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 60,
-            },
-            timeout=10.0,
-        )
-        resp.raise_for_status()
-        content = resp.json()["choices"][0]["message"]["content"].strip()
-        return content if content else fallback
-    except Exception:
-        # Never let an LLM/network hiccup break the recovery pipeline
-        return fallback
+    for provider in providers:
+        try:
+            resp = httpx.post(
+                provider["url"],
+                headers={"Authorization": f"Bearer {provider['key']}"},
+                json={
+                    "model": provider["model"],
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 60,
+                },
+                timeout=10.0,
+            )
+            resp.raise_for_status()
+            content = resp.json()["choices"][0]["message"]["content"].strip()
+            if content:
+                return content
+        except Exception:
+            # Fallback to the next provider in the chain
+            continue
+
+    return fallback
+

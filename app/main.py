@@ -6,7 +6,7 @@ from app.core.database import Base, engine, SessionLocal
 from app.models.models import Transaction
 from app.services.data_generator import generate_batch, SCENARIOS
 from app.services.engine import run_until_resolved
-from app.routers import transactions, recovery, dashboard
+from app.routers import transactions, recovery, dashboard, invoices
 
 Base.metadata.create_all(bind=engine)
 
@@ -41,6 +41,7 @@ app.add_middleware(
 app.include_router(transactions.router)
 app.include_router(recovery.router)
 app.include_router(dashboard.router)
+app.include_router(invoices.router)
 
 
 @app.get("/health")

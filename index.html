@@ -117,7 +117,8 @@
         <div class="flex items-center gap-6">
             <div class="font-headline-md text-headline-md font-bold text-on-surface dark:text-on-surface">Recovery Copilot</div>
             <nav class="hidden md:flex items-center gap-4">
-                <a class="text-primary dark:text-primary border-b-2 border-primary pb-1 font-label-md text-label-md px-2 py-1" href="#">Dashboard</a>
+                <button id="tab-dashboard" onclick="switchTab('dashboard')" class="text-primary border-b-2 border-primary pb-1 font-label-md text-label-md px-2 py-1">Payment Recovery</button>
+                <button id="tab-b2b" onclick="switchTab('b2b')" class="text-on-surface-variant hover:text-on-surface pb-1 font-label-md text-label-md px-2 py-1">B2B Receivables</button>
                 <div class="relative group">
                     <button class="text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-variant dark:hover:bg-surface-variant transition-colors font-label-md text-label-md px-2 py-1 rounded flex items-center gap-1">
                         Settings <span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
@@ -130,6 +131,16 @@
                             </label>
                             <input id="slider-threshold" type="range" min="0.3" max="0.9" step="0.05" value="0.70" class="w-full h-1 bg-surface-variant rounded-lg appearance-none cursor-pointer accent-[#3B82F6]" oninput="document.getElementById('threshold-val').innerText = parseFloat(this.value).toFixed(2)">
                             
+                            <div class="border-t border-outline-variant my-2 pt-2">
+                                <label class="font-label-md text-label-md text-on-surface-variant flex justify-between items-center mb-1">
+                                    <span>Diagnosis Mode</span>
+                                </label>
+                                <div class="flex gap-2">
+                                    <button id="btn-mode-llm" onclick="updateMode('llm')" class="flex-1 py-1 px-2 rounded font-label-sm text-label-sm text-center border border-outline-variant bg-surface-variant text-on-surface hover:bg-surface-variant/80">LLM</button>
+                                    <button id="btn-mode-det" onclick="updateMode('deterministic')" class="flex-1 py-1 px-2 rounded font-label-sm text-label-sm text-center border border-outline-variant bg-surface-variant text-on-surface hover:bg-surface-variant/80">Rules</button>
+                                </div>
+                            </div>
+
                             <div class="border-t border-outline-variant my-2 pt-2">
                                 <button onclick="exportToCSV()" class="w-full py-2 bg-[#3B82F6] hover:bg-blue-600 rounded-lg transition-colors font-label-md text-label-md text-white flex items-center justify-center gap-2">
                                     <span class="material-symbols-outlined text-[18px]">download</span>
@@ -164,129 +175,301 @@
     </header>
 
     <main class="max-w-[1600px] mx-auto p-container-padding grid grid-cols-12 gap-card-gap">
-        <!-- Top Section: Stat Cards -->
-        <div class="col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-card-gap">
-            <!-- Card 1 -->
-            <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
-                <div class="flex justify-between items-start mb-2">
-                    <span class="font-label-md text-label-md text-on-surface-variant">Net Amount Recovered</span>
-                    <span class="material-symbols-outlined text-success opacity-50" data-icon="payments">payments</span>
+        <!-- Canonical Demo Highlight Box -->
+        <div class="col-span-12 bg-gradient-to-r from-slate-900 to-indigo-950 border-2 border-indigo-500/30 rounded-xl p-6 shadow-xl mb-2">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+                <div>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 mb-2">Demo Walkthrough</span>
+                    <h2 class="font-headline-md text-headline-md text-white font-bold">Canonical Demo: Recovery Decision Sequence</h2>
+                    <p class="text-on-surface-variant text-sm mt-1">Witness stateful recovery in action. Click below to step through recovery decisions for HDFC transaction 101 (₹4,500 failure due to <code>bank_server_down</code>).</p>
                 </div>
-                <div id="net-recovered" class="font-headline-lg text-headline-lg text-success mt-2">₹0</div>
-                <div class="mt-2 text-success font-label-sm text-label-sm flex items-center gap-1">
-                    <span class="material-symbols-outlined text-[14px]">trending_up</span> +12.5% vs last week
+                <div class="flex gap-3">
+                    <button onclick="resetDemoTxn()" class="px-4 py-2 border border-outline-variant hover:bg-surface-variant text-on-surface font-label-md text-label-md rounded-lg transition-all">
+                        Reset Transaction
+                    </button>
+                    <button id="btn-demo-step" onclick="runDemoTxnStep()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg font-label-md text-label-md transition-all shadow-lg shadow-indigo-600/30 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px]">play_arrow</span>
+                        <span>Step Decision Pipeline</span>
+                    </button>
                 </div>
             </div>
-            <!-- Card 2 -->
-            <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors flex flex-col justify-between">
-                <div class="flex justify-between items-start mb-2">
-                    <span class="font-label-md text-label-md text-on-surface-variant">Overall Recovery Rate</span>
-                    <span class="material-symbols-outlined text-primary opacity-50" data-icon="data_usage">data_usage</span>
+
+            <!-- Detailed Visual Flow Step Cards -->
+            <div id="demo-walkthrough-flow" class="grid grid-cols-1 md:grid-cols-5 gap-4 mt-6">
+                <!-- Step 1: Failure -->
+                <div class="bg-surface-container rounded-lg p-4 border border-outline-variant flex flex-col justify-between">
+                    <div>
+                        <div class="text-[10px] uppercase font-bold text-error tracking-wider mb-1">Step 1: Failure</div>
+                        <div class="font-headline-sm text-white font-bold">₹4,500</div>
+                        <div class="text-xs text-on-surface-variant mt-1">Payment Method: Card</div>
+                        <div class="text-[11px] text-error font-mono mt-2 bg-error/10 px-1.5 py-1 rounded">bank_server_down</div>
+                    </div>
                 </div>
-                <div class="flex items-end justify-between mt-2">
-                    <div id="recovery-rate" class="font-headline-lg text-headline-lg text-primary">0%</div>
-                    <!-- Simple Circular Progress -->
-                    <div class="relative w-12 h-12">
-                        <svg class="w-full h-full" viewbox="0 0 36 36">
-                            <path class="text-surface-variant stroke-current" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke-width="4"></path>
-                            <path id="recovery-rate-circle" class="text-primary stroke-current transition-all duration-500" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke-dasharray="0, 100" stroke-linecap="round" stroke-width="4"></path>
-                        </svg>
+
+                <!-- Step 2: AI Diagnosis -->
+                <div id="demo-step-2" class="bg-surface-container/40 rounded-lg p-4 border border-outline-variant/30 flex flex-col justify-between opacity-50">
+                    <div>
+                        <div class="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-1">Step 2: AI Diagnosis</div>
+                        <div class="text-sm font-semibold text-white mt-1" id="demo-diag-text">-</div>
+                        <div class="text-xs text-on-surface-variant mt-2" id="demo-diag-conf">Confidence: -</div>
+                    </div>
+                </div>
+
+                <!-- Step 3: History & recommendation -->
+                <div id="demo-step-3" class="bg-surface-container/40 rounded-lg p-4 border border-outline-variant/30 flex flex-col justify-between opacity-50">
+                    <div>
+                        <div class="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-1">Step 3: Stateful EV</div>
+                        <div class="text-xs font-semibold text-white mt-1" id="demo-rec-text">-</div>
+                        <div class="text-[11px] text-primary mt-2" id="demo-rec-ev">Expected Net: -</div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Policy Gate -->
+                <div id="demo-step-4" class="bg-surface-container/40 rounded-lg p-4 border border-outline-variant/30 flex flex-col justify-between opacity-50">
+                    <div>
+                        <div class="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-1">Step 4: Policy Gate</div>
+                        <div class="text-xs font-semibold text-white mt-1" id="demo-policy-text">-</div>
+                        <div class="text-[11px] text-on-surface-variant mt-2" id="demo-policy-reason">Override: -</div>
+                    </div>
+                </div>
+
+                <!-- Step 5: Outcome -->
+                <div id="demo-step-5" class="bg-surface-container/40 rounded-lg p-4 border border-outline-variant/30 flex flex-col justify-between opacity-50">
+                    <div>
+                        <div class="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-1">Step 5: Outcome</div>
+                        <div class="text-sm font-semibold text-white mt-1" id="demo-outcome-text">-</div>
+                        <div class="text-xs text-on-surface-variant mt-2" id="demo-outcome-net">Net Recovered: -</div>
                     </div>
                 </div>
             </div>
-            <!-- Card 3 -->
-            <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
-                <div class="flex justify-between items-start mb-2">
-                    <span class="font-label-md text-label-md text-on-surface-variant">Amount Still At Risk</span>
-                    <span class="material-symbols-outlined text-warning opacity-50" data-icon="warning">warning</span>
+            
+            <div class="mt-4 flex items-center justify-between border-t border-outline-variant/20 pt-4">
+                <div class="text-xs text-on-surface-variant italic">
+                    Note: AI recommends. Policy authorizes. Executor acts. AI never holds capital authority.
                 </div>
-                <div id="amount-at-risk" class="font-headline-lg text-headline-lg text-warning mt-2">₹0</div>
-                <div class="mt-2 text-warning font-label-sm text-label-sm flex items-center gap-1">
-                    <span class="material-symbols-outlined text-[14px]">error</span> Needs attention
+                <div class="flex gap-4 text-xs font-semibold text-indigo-300">
+                    <span id="demo-status-history">History: No attempts</span>
                 </div>
             </div>
-            <!-- Card 4 -->
-            <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
-                <div class="flex justify-between items-start mb-2">
-                    <span class="font-label-md text-label-md text-on-surface-variant flex items-center gap-1">
-                        Escalated to Human
-                        <span class="group/tooltip relative inline-flex items-center cursor-help">
-                            <span class="material-symbols-outlined text-[14px] text-on-surface-variant opacity-60 hover:opacity-100">info</span>
-                            <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-surface-container-highest border border-outline-variant text-[10px] text-on-surface font-body-sm rounded shadow-lg opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 z-50 pointer-events-none normal-case font-normal leading-normal">
-                                Low-confidence cases are never auto-actioned — they're routed to human review, in line with RBI/TRAI compliance norms for automated financial messaging.
+        </div>
+
+        <!-- Dashboard / Payment Recovery Tab -->
+        <div id="section-dashboard" class="col-span-12 grid grid-cols-12 gap-card-gap">
+            <!-- Top Section: Stat Cards -->
+            <div class="col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-card-gap">
+                <!-- Card 1 -->
+                <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="font-label-md text-label-md text-on-surface-variant">Net Amount Recovered</span>
+                        <span class="material-symbols-outlined text-success opacity-50" data-icon="payments">payments</span>
+                    </div>
+                    <div id="net-recovered" class="font-headline-lg text-headline-lg text-success mt-2">₹0</div>
+                    <div class="mt-2 text-success font-label-sm text-label-sm flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[14px]">trending_up</span> +12.5% vs last week
+                    </div>
+                </div>
+                <!-- Card 2 -->
+                <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors flex flex-col justify-between">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="font-label-md text-label-md text-on-surface-variant">Overall Recovery Rate</span>
+                        <span class="material-symbols-outlined text-primary opacity-50" data-icon="data_usage">data_usage</span>
+                    </div>
+                    <div class="flex items-end justify-between mt-2">
+                        <div id="recovery-rate" class="font-headline-lg text-headline-lg text-primary">0%</div>
+                        <!-- Simple Circular Progress -->
+                        <div class="relative w-12 h-12">
+                            <svg class="w-full h-full" viewbox="0 0 36 36">
+                                <path class="text-surface-variant stroke-current" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke-width="4"></path>
+                                <path id="recovery-rate-circle" class="text-primary stroke-current transition-all duration-500" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke-dasharray="0, 100" stroke-linecap="round" stroke-width="4"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <!-- Card 3 -->
+                <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="font-label-md text-label-md text-on-surface-variant">Amount Still At Risk</span>
+                        <span class="material-symbols-outlined text-warning opacity-50" data-icon="warning">warning</span>
+                    </div>
+                    <div id="amount-at-risk" class="font-headline-lg text-headline-lg text-warning mt-2">₹0</div>
+                    <div class="mt-2 text-warning font-label-sm text-label-sm flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[14px]">error</span> Needs attention
+                    </div>
+                </div>
+                <!-- Card 4 -->
+                <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="font-label-md text-label-md text-on-surface-variant flex items-center gap-1">
+                            Escalated to Human
+                            <span class="group/tooltip relative inline-flex items-center cursor-help">
+                                <span class="material-symbols-outlined text-[14px] text-on-surface-variant opacity-60 hover:opacity-100">info</span>
+                                <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-surface-container-highest border border-outline-variant text-[10px] text-on-surface font-body-sm rounded shadow-lg opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 z-50 pointer-events-none normal-case font-normal leading-normal">
+                                    Low-confidence cases are never auto-actioned — they're routed to human review, in line with RBI/TRAI compliance norms for automated financial messaging.
+                                </span>
                             </span>
                         </span>
-                    </span>
-                    <span class="material-symbols-outlined text-on-surface-variant opacity-50" data-icon="support_agent">support_agent</span>
+                        <span class="material-symbols-outlined text-on-surface-variant opacity-50" data-icon="support_agent">support_agent</span>
+                    </div>
+                    <div id="escalated-count" class="font-headline-lg text-headline-lg text-on-surface mt-2">0</div>
+                    <div class="mt-2 text-on-surface-variant font-label-sm text-label-sm flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[14px]">schedule</span> 3 urgent
+                    </div>
                 </div>
-                <div id="escalated-count" class="font-headline-lg text-headline-lg text-on-surface mt-2">0</div>
-                <div class="mt-2 text-on-surface-variant font-label-sm text-label-sm flex items-center gap-1">
-                    <span class="material-symbols-outlined text-[14px]">schedule</span> 3 urgent
+                <!-- Card 5 -->
+                <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="font-label-md text-label-md text-on-surface-variant">Promises to Pay</span>
+                        <span class="material-symbols-outlined text-primary opacity-50" data-icon="handshake">handshake</span>
+                    </div>
+                    <div id="promises-amount" class="font-headline-lg text-headline-lg text-primary mt-2">₹0</div>
+                    <div class="mt-2 text-on-surface-variant font-label-sm text-label-sm flex items-center gap-1">
+                        <span id="promises-count">0</span> promised payments
+                    </div>
                 </div>
             </div>
-            <!-- Card 5 -->
-            <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
-                <div class="flex justify-between items-start mb-2">
-                    <span class="font-label-md text-label-md text-on-surface-variant">Promises to Pay</span>
-                    <span class="material-symbols-outlined text-primary opacity-50" data-icon="handshake">handshake</span>
+
+            <!-- Middle Section: Charts -->
+            <div class="col-span-12 lg:col-span-8 bg-surface-container-high rounded-lg border border-outline-variant p-6 flex flex-col">
+                <h2 class="font-headline-sm text-headline-sm mb-6 text-on-surface">Recovery Rate by Failure Type</h2>
+                <div id="failure-bars" class="flex-grow flex flex-col justify-center gap-4">
+                    <!-- Populated dynamically via JS -->
+                    <div class="text-on-surface-variant text-center font-body-md py-8">Loading metrics...</div>
                 </div>
-                <div id="promises-amount" class="font-headline-lg text-headline-lg text-primary mt-2">₹0</div>
-                <div class="mt-2 text-on-surface-variant font-label-sm text-label-sm flex items-center gap-1">
-                    <span id="promises-count">0</span> promised payments
+            </div>
+            
+            <div class="col-span-12 lg:col-span-4 bg-surface-container-high rounded-lg border border-outline-variant p-6 flex flex-col items-center justify-center">
+                <h2 class="font-headline-sm text-headline-sm mb-6 w-full text-left text-on-surface">Actions Taken</h2>
+                <!-- CSS Donut Chart approximation -->
+                <div id="actions-donut" class="relative w-48 h-48 rounded-full bg-surface-variant flex items-center justify-center transition-all duration-500" style="background: conic-gradient(#94A3B8 0% 100%);">
+                    <div class="w-32 h-32 rounded-full bg-surface-container-high flex items-center justify-center flex-col shadow-inner">
+                        <span id="donut-percentage" class="font-headline-lg text-headline-lg text-on-surface">0%</span>
+                        <span id="donut-label" class="font-label-sm text-label-sm text-on-surface-variant">No actions</span>
+                    </div>
+                </div>
+                <div id="actions-legend" class="mt-6 flex flex-wrap justify-center gap-4 w-full">
+                    <!-- Dynamic legend -->
+                </div>
+            </div>
+
+            <!-- Bottom Section: Transactions Table -->
+            <div class="col-span-12 bg-surface-container-high rounded-lg border border-outline-variant overflow-hidden">
+                <div class="p-4 border-b border-outline-variant flex justify-between items-center bg-surface-container-high/80 backdrop-blur-sm sticky top-0 z-10">
+                    <h2 class="font-headline-sm text-headline-sm text-on-surface">Transactions</h2>
+                    <button class="text-on-surface-variant hover:text-on-surface font-label-sm text-label-sm flex items-center gap-1 transition-colors">
+                        <span class="material-symbols-outlined text-[16px]">filter_list</span> Filter
+                    </button>
+                </div>
+                <div class="w-full overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-outline-variant text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider bg-surface-container">
+                                <th class="p-3 font-medium">Transaction ID</th>
+                                <th class="p-3 font-medium">Customer</th>
+                                <th class="p-3 font-medium">Amount</th>
+                                <th class="p-3 font-medium">Failure Reason</th>
+                                <th class="p-3 font-medium">Status</th>
+                                <th class="p-3 font-medium text-right">Attempts</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactions-tbody" class="font-label-md text-label-md">
+                            <!-- Populated dynamically via JS -->
+                            <tr>
+                                <td colspan="6" class="p-8 text-center text-on-surface-variant">Loading transactions...</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
 
-        <!-- Middle Section: Charts -->
-        <div class="col-span-12 lg:col-span-8 bg-surface-container-high rounded-lg border border-outline-variant p-6 flex flex-col">
-            <h2 class="font-headline-sm text-headline-sm mb-6 text-on-surface">Recovery Rate by Failure Type</h2>
-            <div id="failure-bars" class="flex-grow flex flex-col justify-center gap-4">
-                <!-- Populated dynamically via JS -->
-                <div class="text-on-surface-variant text-center font-body-md py-8">Loading metrics...</div>
-            </div>
-        </div>
-        
-        <div class="col-span-12 lg:col-span-4 bg-surface-container-high rounded-lg border border-outline-variant p-6 flex flex-col items-center justify-center">
-            <h2 class="font-headline-sm text-headline-sm mb-6 w-full text-left text-on-surface">Actions Taken</h2>
-            <!-- CSS Donut Chart approximation -->
-            <div id="actions-donut" class="relative w-48 h-48 rounded-full bg-surface-variant flex items-center justify-center transition-all duration-500" style="background: conic-gradient(#94A3B8 0% 100%);">
-                <div class="w-32 h-32 rounded-full bg-surface-container-high flex items-center justify-center flex-col shadow-inner">
-                    <span id="donut-percentage" class="font-headline-lg text-headline-lg text-on-surface">0%</span>
-                    <span id="donut-label" class="font-label-sm text-label-sm text-on-surface-variant">No actions</span>
+        <!-- B2B Receivables Tab -->
+        <div id="section-b2b" class="col-span-12 grid grid-cols-12 gap-card-gap hidden">
+            <!-- Stat Cards for B2B -->
+            <div class="col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-card-gap">
+                <!-- Card 1: Total Overdue -->
+                <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="font-label-md text-label-md text-on-surface-variant">Total Overdue Receivables</span>
+                        <span class="material-symbols-outlined text-warning opacity-50" data-icon="payments">payments</span>
+                    </div>
+                    <div id="b2b-total-overdue" class="font-headline-lg text-headline-lg text-warning mt-2">₹0</div>
+                    <div class="mt-2 text-warning font-label-sm text-label-sm flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[14px]">trending_up</span> Outstanding invoices
+                    </div>
+                </div>
+                <!-- Card 2: Average Days to Collection -->
+                <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="font-label-md text-label-md text-on-surface-variant">Avg Days-to-Collection</span>
+                        <span class="material-symbols-outlined text-primary opacity-50" data-icon="schedule">schedule</span>
+                    </div>
+                    <div id="b2b-avg-days" class="font-headline-lg text-headline-lg text-primary mt-2">0.0 days</div>
+                    <div class="mt-2 text-primary font-label-sm text-label-sm flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[14px]">check_circle</span> Settled payment window
+                    </div>
+                </div>
+                <!-- Card 3: Invoices Escalated -->
+                <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="font-label-md text-label-md text-on-surface-variant">Escalated Invoices</span>
+                        <span class="material-symbols-outlined text-[#adc6ff] opacity-50" data-icon="support_agent">support_agent</span>
+                    </div>
+                    <div id="b2b-escalated-count" class="font-headline-lg text-headline-lg text-on-surface mt-2">0</div>
+                    <div class="mt-2 text-on-surface-variant font-label-sm text-label-sm flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[14px]">warning</span> Human agency collection
+                    </div>
+                </div>
+                <!-- Card 4: Written Off -->
+                <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="font-label-md text-label-md text-on-surface-variant">Written Off Invoices</span>
+                        <span class="material-symbols-outlined text-error opacity-50" data-icon="cancel">cancel</span>
+                    </div>
+                    <div id="b2b-written-off-count" class="font-headline-lg text-headline-lg text-error mt-2">0</div>
+                    <div class="mt-2 text-error font-label-sm text-label-sm flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[14px]">cancel</span> Bad debt written off
+                    </div>
                 </div>
             </div>
-            <div id="actions-legend" class="mt-6 flex flex-wrap justify-center gap-4 w-full">
-                <!-- Dynamic legend -->
-            </div>
-        </div>
 
-        <!-- Bottom Section: Transactions Table -->
-        <div class="col-span-12 bg-surface-container-high rounded-lg border border-outline-variant overflow-hidden">
-            <div class="p-4 border-b border-outline-variant flex justify-between items-center bg-surface-container-high/80 backdrop-blur-sm sticky top-0 z-10">
-                <h2 class="font-headline-sm text-headline-sm text-on-surface">Transactions</h2>
-                <button class="text-on-surface-variant hover:text-on-surface font-label-sm text-label-sm flex items-center gap-1 transition-colors">
-                    <span class="material-symbols-outlined text-[16px]">filter_list</span> Filter
+            <!-- B2B Actions Bar -->
+            <div class="col-span-12 flex justify-end gap-4 bg-surface-container-high p-4 rounded-lg border border-outline-variant">
+                <button id="btn-generate-invoices" onclick="generateInvoices()" class="px-4 py-2 border border-outline-variant rounded-lg text-on-surface hover:bg-surface-variant transition-all font-label-md text-label-md flex items-center justify-center gap-2">
+                    <span>Generate Invoices Batch</span>
+                </button>
+                <button id="btn-run-invoice-batch" onclick="runInvoiceBatch()" class="bg-[#3B82F6] hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-all font-label-md text-label-md flex items-center justify-center gap-2">
+                    <span>Run Invoice Escalation</span>
+                </button>
+                <button id="btn-run-invoices-resolved" onclick="runInvoicesUntilResolved()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-all font-label-md text-label-md flex items-center justify-center gap-2">
+                    <span>Run Until Resolved</span>
                 </button>
             </div>
-            <div class="w-full overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="border-b border-outline-variant text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider bg-surface-container">
-                            <th class="p-3 font-medium">Transaction ID</th>
-                            <th class="p-3 font-medium">Customer</th>
-                            <th class="p-3 font-medium">Amount</th>
-                            <th class="p-3 font-medium">Failure Reason</th>
-                            <th class="p-3 font-medium">Status</th>
-                            <th class="p-3 font-medium text-right">Attempts</th>
-                        </tr>
-                    </thead>
-                    <tbody id="transactions-tbody" class="font-label-md text-label-md">
-                        <!-- Populated dynamically via JS -->
-                        <tr>
-                            <td colspan="6" class="p-8 text-center text-on-surface-variant">Loading transactions...</td>
-                        </tr>
-                    </tbody>
-                </table>
+
+            <!-- Invoices Table -->
+            <div class="col-span-12 bg-surface-container-high rounded-lg border border-outline-variant overflow-hidden">
+                <div class="p-4 border-b border-outline-variant flex justify-between items-center bg-surface-container-high/80 backdrop-blur-sm sticky top-0 z-10">
+                    <h2 class="font-headline-sm text-headline-sm text-on-surface">B2B Receivables</h2>
+                </div>
+                <div class="w-full overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-outline-variant text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider bg-surface-container">
+                                <th class="p-3 font-medium">Invoice ID</th>
+                                <th class="p-3 font-medium">Business Name</th>
+                                <th class="p-3 font-medium">Amount</th>
+                                <th class="p-3 font-medium">Due Date</th>
+                                <th class="p-3 font-medium">Days Overdue</th>
+                                <th class="p-3 font-medium">Status</th>
+                                <th class="p-3 font-medium text-right">Escalation Stage</th>
+                            </tr>
+                        </thead>
+                        <tbody id="invoices-tbody" class="font-label-md text-label-md">
+                            <tr>
+                                <td colspan="7" class="p-8 text-center text-on-surface-variant">No invoices generated yet. Click "Generate Invoices Batch" to begin.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </main>
@@ -898,6 +1081,48 @@
                         hour12: true
                     });
 
+                    // Decode diagnosis source badge
+                    let sourceBadge = '';
+                    if (attempt.diagnosis_source === 'AI') {
+                        sourceBadge = '<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold bg-purple-600/20 text-purple-400 border border-purple-500/30 ml-2">AI</span>';
+                    } else if (attempt.diagnosis_source) {
+                        sourceBadge = `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold bg-orange-600/20 text-orange-400 border border-orange-500/30 ml-2">${escapeHTML(attempt.diagnosis_source)}</span>`;
+                    }
+
+                    // Render policy checks
+                    let rulesHtml = '';
+                    if (attempt.rules_evaluated) {
+                        try {
+                            const rules = JSON.parse(attempt.rules_evaluated);
+                            rulesHtml = rules.map(r => `
+                                <div class="flex items-center gap-1.5 text-[11px] ${r.passed ? 'text-success' : 'text-error'}">
+                                    <span>${r.passed ? '✓' : '✗'}</span>
+                                    <span class="font-medium">${escapeHTML(r.rule)}</span>
+                                    <span class="text-on-surface-variant font-normal">(${escapeHTML(r.detail)})</span>
+                                </div>
+                            `).join('');
+                        } catch (e) {
+                            rulesHtml = `<div class="text-[11px] text-on-surface-variant">${escapeHTML(attempt.rules_evaluated)}</div>`;
+                        }
+                    }
+
+                    // Predictor Status HTML
+                    let predictorHtml = '';
+                    if (attempt.predictor_status === 'fallback') {
+                        predictorHtml = `
+                            <div class="mt-2 p-2 bg-error-container/10 border border-error-container/30 rounded">
+                                <div class="font-label-sm text-label-sm text-error font-semibold uppercase">Predictor Status: Fallback</div>
+                                <div class="text-[11px] text-on-error-container mt-0.5">AI prediction unavailable — deterministic fallback used.</div>
+                            </div>
+                        `;
+                    } else if (attempt.predictor_status === 'success') {
+                        predictorHtml = `
+                            <div class="mt-2 p-2 bg-success/5 border border-success/20 rounded">
+                                <div class="font-label-sm text-label-sm text-success font-semibold uppercase">Predictor Status: Success</div>
+                            </div>
+                        `;
+                    }
+
                     const attemptHtml = `
                         <div class="relative">
                             <div class="absolute -left-[31px] top-1 w-3 h-3 rounded-full ${dotColor} border-2 border-[#1a2436]"></div>
@@ -906,19 +1131,80 @@
                                 <span class="text-on-surface-variant text-[10px]">${attemptTime}</span>
                                 <span class="ml-auto inline-flex items-center px-2 py-0.5 rounded-full ${badgeClass} text-[10px] font-medium">${outcomeText}</span>
                             </div>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2 bg-surface-container/30 p-3 rounded border border-outline-variant/10">
-                                <div>
-                                    <div class="font-label-sm text-label-sm text-on-surface-variant mb-1">Diagnosis</div>
-                                    <div class="text-on-surface font-body-sm text-body-sm">${escapeHTML(FAILURE_NAMES[attempt.diagnosis] || attempt.diagnosis)}</div>
+                            
+                            <!-- Five Clean Structured Columns -->
+                            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mt-2 bg-surface-container/30 p-4 rounded border border-outline-variant/10">
+                                
+                                <!-- 1. DIAGNOSIS -->
+                                <div class="flex flex-col gap-1">
+                                    <div class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Diagnosis</div>
+                                    <div class="text-on-surface font-semibold text-body-sm flex flex-wrap items-center gap-1">
+                                        ${escapeHTML(FAILURE_NAMES[attempt.diagnosis] || attempt.diagnosis)}
+                                        ${sourceBadge}
+                                    </div>
+                                    <div class="text-[11px] text-on-surface-variant mt-1">
+                                        Confidence: ${attempt.confidence ? Math.round(attempt.confidence * 100) : 0}%
+                                    </div>
+                                    ${predictorHtml}
                                 </div>
-                                <div>
-                                    <div class="font-label-sm text-label-sm text-on-surface-variant mb-1">Action</div>
-                                    <div class="text-on-surface font-body-sm text-body-sm">${escapeHTML(attempt.action_taken.replace(/_/g, ' '))}</div>
+
+                                <!-- 2. AI RECOMMENDATION / WHY -->
+                                <div class="flex flex-col gap-1">
+                                    <div class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Recommendation</div>
+                                    <div class="text-on-surface font-medium text-body-sm">
+                                        ${attempt.ai_recommendation ? escapeHTML(attempt.ai_recommendation.replace(/_/g, ' ')) : 'N/A'}
+                                    </div>
+                                    <div class="text-[11px] text-on-surface-variant mt-1 leading-snug">
+                                        ${attempt.ai_reasoning ? escapeHTML(attempt.ai_reasoning) : 'No AI reasoning available.'}
+                                    </div>
+                                    <div class="text-[11px] text-primary mt-1">
+                                        Est. Probability: ${attempt.ai_predicted_probability ? Math.round(attempt.ai_predicted_probability * 100) : 0}%
+                                    </div>
                                 </div>
-                                <div>
-                                    <div class="font-label-sm text-label-sm text-on-surface-variant mb-1">Reasoning</div>
-                                    <div class="text-on-surface font-body-sm text-body-sm">${escapeHTML(attempt.reasoning)}</div>
+
+                                <!-- 3. POLICY GATE -->
+                                <div class="flex flex-col gap-1">
+                                    <div class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Policy Gate</div>
+                                    <div class="text-body-sm font-semibold ${attempt.policy_decision === 'APPROVED' ? 'text-success' : 'text-error'}">
+                                        ${attempt.policy_decision || 'N/A'}
+                                    </div>
+                                    <div class="flex flex-col gap-1 mt-1">
+                                        ${rulesHtml}
+                                    </div>
+                                    ${attempt.policy_override_reason ? `
+                                        <div class="text-[10px] text-warning border-t border-outline-variant/10 mt-1 pt-1 leading-snug">
+                                            Override: ${escapeHTML(attempt.policy_override_reason)}
+                                        </div>
+                                    ` : ''}
                                 </div>
+
+                                <!-- 4. FINAL ACTION -->
+                                <div class="flex flex-col gap-1">
+                                    <div class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Final Action</div>
+                                    <div class="text-on-surface font-semibold text-body-sm">
+                                        ${escapeHTML(attempt.action_taken.replace(/_/g, ' '))}
+                                    </div>
+                                    <div class="text-[11px] text-on-surface-variant mt-1 leading-normal">
+                                        Fallback Status: <span class="font-medium text-on-surface">${escapeHTML(attempt.fallback_status || 'Inactive')}</span>
+                                    </div>
+                                </div>
+
+                                <!-- 5. OUTCOME -->
+                                <div class="flex flex-col gap-1">
+                                    <div class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Outcome</div>
+                                    <div class="text-on-surface font-semibold text-body-sm flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full ${dotColor}"></span>
+                                        ${outcomeText}
+                                    </div>
+                                    <div class="text-[11px] text-on-surface-variant mt-1 space-y-0.5">
+                                        <div>Recovery Amount: <span class="text-on-surface font-medium">${formatINR(attempt.recovery_amount || 0)}</span></div>
+                                        <div>Action Cost: <span class="text-on-surface font-medium">${formatINR(attempt.cost || 0)}</span></div>
+                                        <div class="border-t border-outline-variant/10 pt-0.5 mt-0.5">
+                                            Net recovery: <span class="font-bold ${attempt.net_recovery >= 0 ? 'text-success' : 'text-error'}">${formatINR(attempt.net_recovery || 0)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
                             </div>
                         </div>
                     `;
@@ -1071,10 +1357,444 @@
             }
         }
 
+        // Tab switching logic
+        function switchTab(tab) {
+            const tabDashboard = document.getElementById('tab-dashboard');
+            const tabB2b = document.getElementById('tab-b2b');
+            const secDashboard = document.getElementById('section-dashboard');
+            const secB2b = document.getElementById('section-b2b');
+            
+            if (tab === 'dashboard') {
+                tabDashboard.className = "text-primary border-b-2 border-primary pb-1 font-label-md text-label-md px-2 py-1";
+                tabB2b.className = "text-on-surface-variant hover:text-on-surface pb-1 font-label-md text-label-md px-2 py-1";
+                secDashboard.classList.remove('hidden');
+                secB2b.classList.add('hidden');
+                fetchSummary();
+                fetchTransactions();
+            } else {
+                tabB2b.className = "text-primary border-b-2 border-primary pb-1 font-label-md text-label-md px-2 py-1";
+                tabDashboard.className = "text-on-surface-variant hover:text-on-surface pb-1 font-label-md text-label-md px-2 py-1";
+                secDashboard.classList.add('hidden');
+                secB2b.classList.remove('hidden');
+                fetchB2BSummary();
+                fetchInvoices();
+            }
+        }
+
+        // B2B receivables metrics and table
+        async function fetchB2BSummary() {
+            try {
+                const response = await fetch(`${API_BASE}/invoices/stats`);
+                if (!response.ok) throw new Error('Failed to fetch B2B stats');
+                const data = await response.json();
+                
+                document.getElementById('b2b-total-overdue').innerText = formatINR(data.total_overdue);
+                document.getElementById('b2b-avg-days').innerText = `${data.avg_days_to_collection.toFixed(1)} days`;
+                document.getElementById('b2b-escalated-count').innerText = data.status_counts.escalated;
+                document.getElementById('b2b-written-off-count').innerText = data.status_counts.written_off;
+            } catch (err) {
+                console.error(err);
+                showToast(`Unable to load B2B summary: ${err.message}`);
+            }
+        }
+
+        async function fetchInvoices() {
+            try {
+                const response = await fetch(`${API_BASE}/invoices`);
+                if (!response.ok) throw new Error('Failed to fetch invoices');
+                const invoices = await response.json();
+                
+                const tbody = document.getElementById('invoices-tbody');
+                tbody.innerHTML = '';
+                
+                if (invoices.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="p-8 text-center text-on-surface-variant">No invoices found. Click "Generate Invoices Batch" to begin.</td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                invoices.forEach(inv => {
+                    let badgeClass = 'bg-surface-variant text-on-surface-variant';
+                    let statusLabel = 'Open';
+                    if (inv.status === 'paid') {
+                        badgeClass = 'bg-success/15 text-success';
+                        statusLabel = 'Paid';
+                    } else if (inv.status === 'escalated') {
+                        badgeClass = 'bg-[#adc6ff]/20 text-[#adc6ff] border border-[#adc6ff]/30';
+                        statusLabel = 'Escalated';
+                    } else if (inv.status === 'written_off') {
+                        badgeClass = 'bg-error/15 text-error';
+                        statusLabel = 'Written Off';
+                    }
+                    
+                    const dueTime = new Date(inv.due_date).toLocaleDateString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                    });
+
+                    let stage = 'Friendly Reminder';
+                    if (inv.days_overdue > 60) stage = 'Legal Review';
+                    else if (inv.days_overdue > 30) stage = 'Human Escalation';
+                    else if (inv.days_overdue > 15) stage = 'Formal Notice';
+
+                    const rowHtml = `
+                        <tr class="border-b border-outline-variant hover:bg-[#334155]/50 transition-colors cursor-pointer group" onclick="toggleInvoiceAudit(this, ${inv.id})">
+                            <td class="p-3 flex items-center gap-2 text-primary">
+                                <span class="chevron-icon material-symbols-outlined text-[16px] transition-transform duration-200">chevron_right</span>
+                                INV-${inv.id}
+                            </td>
+                            <td class="p-3 text-on-surface">${escapeHTML(inv.business_name)}</td>
+                            <td class="p-3 text-on-surface">${formatINR(inv.amount)}</td>
+                            <td class="p-3 text-on-surface-variant">${dueTime}</td>
+                            <td class="p-3 text-on-surface-variant">${inv.days_overdue} days</td>
+                            <td class="p-3">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full font-medium text-[11px] ${badgeClass}">${statusLabel}</span>
+                            </td>
+                            <td class="p-3 text-right text-on-surface-variant font-medium">${stage}</td>
+                        </tr>
+                    `;
+                    tbody.insertAdjacentHTML('beforeend', rowHtml);
+                });
+            } catch (error) {
+                console.error(error);
+                showToast(`Unable to load invoices: ${error.message}`);
+            }
+        }
+
+        async function toggleInvoiceAudit(row, invoiceId) {
+            const chevron = row.querySelector('.chevron-icon');
+            const nextRow = row.nextElementSibling;
+            
+            if (nextRow && nextRow.classList.contains('audit-trail-row')) {
+                nextRow.remove();
+                chevron.classList.remove('rotate-90');
+                row.classList.remove('bg-surface-variant/30');
+                return;
+            }
+            
+            chevron.classList.add('rotate-90');
+            row.classList.add('bg-surface-variant/30');
+            
+            const auditRowHtml = `
+                <tr class="audit-trail-row border-b border-outline-variant bg-[#1a2436]">
+                    <td class="p-0" colspan="7">
+                        <div class="p-6">
+                            <h4 class="font-headline-sm text-headline-sm text-on-surface mb-4">Invoice Audit Trail</h4>
+                            <div class="audit-trail-timeline relative pl-6 border-l-2 border-outline-variant space-y-6">
+                                <div class="text-on-surface-variant text-sm flex items-center gap-2">
+                                    <span class="animate-pulse w-2 h-2 rounded-full bg-primary"></span>
+                                    Loading audit trail details...
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            row.insertAdjacentHTML('afterend', auditRowHtml);
+            
+            const timelineContainer = row.nextElementSibling.querySelector('.audit-trail-timeline');
+            
+            try {
+                const response = await fetch(`${API_BASE}/invoices/audit/${invoiceId}`);
+                if (!response.ok) throw new Error('Failed to load invoice audit trail');
+                const attempts = await response.json();
+                
+                timelineContainer.innerHTML = '';
+                
+                if (attempts.length === 0) {
+                    timelineContainer.innerHTML = `
+                        <div class="text-on-surface-variant text-sm">
+                            No collection attempts have been run for this invoice yet.
+                        </div>
+                    `;
+                    return;
+                }
+                
+                attempts.forEach(attempt => {
+                    let dotColor = 'bg-warning';
+                    let badgeClass = 'bg-warning/15 text-warning';
+                    let outcomeText = 'Pending';
+                    
+                    if (attempt.outcome === 'recovered') {
+                        dotColor = 'bg-success';
+                        badgeClass = 'bg-success/15 text-success';
+                        outcomeText = 'Paid';
+                    } else if (attempt.outcome === 'failed' || attempt.outcome === 'lost') {
+                        dotColor = 'bg-error';
+                        badgeClass = 'bg-error/15 text-error';
+                        outcomeText = attempt.outcome === 'failed' ? 'Failed' : 'Written Off';
+                    } else if (attempt.outcome === 'escalated') {
+                        dotColor = 'bg-[#adc6ff]';
+                        badgeClass = 'bg-[#adc6ff]/15 text-[#adc6ff]';
+                        outcomeText = 'Escalated';
+                    }
+
+                    const attemptTime = new Date(attempt.timestamp).toLocaleString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: 'numeric',
+                        minute: 'numeric',
+                        hour12: true
+                    });
+
+                    const attemptHtml = `
+                        <div class="relative">
+                            <div class="absolute -left-[31px] top-1 w-3 h-3 rounded-full ${dotColor} border-2 border-[#1a2436]"></div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="font-label-md text-label-md text-on-surface font-semibold">Attempt ${attempt.attempt_number}</span>
+                                <span class="text-on-surface-variant text-[10px]">${attemptTime}</span>
+                                <span class="ml-auto inline-flex items-center px-2 py-0.5 rounded-full ${badgeClass} text-[10px] font-medium">${outcomeText}</span>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2 bg-surface-container/30 p-3 rounded border border-outline-variant/10">
+                                <div>
+                                    <div class="font-label-sm text-label-sm text-on-surface-variant mb-1">Overdue diagnosis</div>
+                                    <div class="text-on-surface font-body-sm text-body-sm">${escapeHTML(attempt.diagnosis.replace(/_/g, ' '))}</div>
+                                </div>
+                                <div>
+                                    <div class="font-label-sm text-label-sm text-on-surface-variant mb-1">Action</div>
+                                    <div class="text-on-surface font-body-sm text-body-sm">${escapeHTML(attempt.action_taken.replace(/_/g, ' '))}</div>
+                                </div>
+                                <div>
+                                    <div class="font-label-sm text-label-sm text-on-surface-variant mb-1">Reasoning</div>
+                                    <div class="text-on-surface font-body-sm text-body-sm">${escapeHTML(attempt.reasoning)}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    timelineContainer.insertAdjacentHTML('beforeend', attemptHtml);
+                });
+                
+            } catch (error) {
+                console.error(error);
+                timelineContainer.innerHTML = `
+                    <div class="text-error text-sm flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[16px]">error</span>
+                        Failed to load details: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        async function generateInvoices() {
+            setLoading('btn-generate-invoices', true, 'Generating...');
+            try {
+                const response = await fetch(`${API_BASE}/invoices/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ n: 20 })
+                });
+                if (!response.ok) throw new Error('Failed to generate invoices');
+                showToast('Successfully generated a new batch of 20 B2B invoices!', 'success');
+                await Promise.all([fetchB2BSummary(), fetchInvoices()]);
+            } catch (err) {
+                showToast(`Failed to generate: ${err.message}`);
+            } finally {
+                setLoading('btn-generate-invoices', false, 'Generate Invoices Batch');
+            }
+        }
+
+        async function runInvoiceBatch() {
+            setLoading('btn-run-invoice-batch', true, 'Running...');
+            try {
+                const response = await fetch(`${API_BASE}/invoices/run-batch`, { method: 'POST' });
+                if (!response.ok) throw new Error('Failed to run batch');
+                const results = await response.json();
+                showToast(`Invoice escalation pass complete! Run ${results.length} actions.`, 'success');
+                await Promise.all([fetchB2BSummary(), fetchInvoices()]);
+            } catch (err) {
+                showToast(`Failed to run escalation: ${err.message}`);
+            } finally {
+                setLoading('btn-run-invoice-batch', false, 'Run Invoice Escalation');
+            }
+        }
+
+        async function runInvoicesUntilResolved() {
+            setLoading('btn-run-invoices-resolved', true, 'Running...');
+            try {
+                const response = await fetch(`${API_BASE}/invoices/run-until-resolved`, { method: 'POST' });
+                if (!response.ok) throw new Error('Failed to run until resolved');
+                const results = await response.json();
+                showToast(`Escalated invoices until resolved! Created ${results.length} attempts.`, 'success');
+                await Promise.all([fetchB2BSummary(), fetchInvoices()]);
+            } catch (err) {
+                showToast(`Failed to resolve: ${err.message}`);
+            } finally {
+                setLoading('btn-run-invoices-resolved', false, 'Run Until Resolved');
+            }
+        }
+
+        // Live config settings operations
+        let currentMode = 'llm';
+        
+        async function resetDemoTxn() {
+            setLoading('btn-demo-step', false, 'Step Decision Pipeline');
+            try {
+                // Clear UI highlight step opacity styles
+                document.getElementById('demo-step-2').className = 'bg-surface-container/40 rounded-lg p-4 border border-outline-variant/30 flex flex-col justify-between opacity-50';
+                document.getElementById('demo-step-3').className = 'bg-surface-container/40 rounded-lg p-4 border border-outline-variant/30 flex flex-col justify-between opacity-50';
+                document.getElementById('demo-step-4').className = 'bg-surface-container/40 rounded-lg p-4 border border-outline-variant/30 flex flex-col justify-between opacity-50';
+                document.getElementById('demo-step-5').className = 'bg-surface-container/40 rounded-lg p-4 border border-outline-variant/30 flex flex-col justify-between opacity-50';
+                
+                document.getElementById('demo-diag-text').innerText = '-';
+                document.getElementById('demo-diag-conf').innerText = 'Confidence: -';
+                document.getElementById('demo-rec-text').innerText = '-';
+                document.getElementById('demo-rec-ev').innerText = 'Expected Net: -';
+                document.getElementById('demo-policy-text').innerText = '-';
+                document.getElementById('demo-policy-reason').innerText = 'Override: -';
+                document.getElementById('demo-outcome-text').innerText = '-';
+                document.getElementById('demo-outcome-net').innerText = 'Net Recovered: -';
+                document.getElementById('demo-status-history').innerText = 'History: No attempts';
+                
+                // Re-trigger generation batch request to reconstruct clean sandbox state
+                const genRes = await fetch(`${API_BASE}/transactions/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ n: 60, scenario: 'baseline', seed: 42 }) 
+                });
+                
+                if (genRes.ok) {
+                    showToast('Sandbox transactions seeded successfully!', 'success');
+                    await Promise.all([fetchSummary(), fetchTransactions()]);
+                }
+            } catch (err) {
+                console.error(err);
+                showToast(`Unable to reset demo transactions: ${err.message}`);
+            }
+        }
+
+        async function runDemoTxnStep() {
+            setLoading('btn-demo-step', true, 'Processing Step...');
+            try {
+                // Find ID of HDFC bank_server_down transaction
+                const txnsRes = await fetch(`${API_BASE}/transactions`);
+                if (!txnsRes.ok) throw new Error('Failed to query transactions list');
+                const transactions = await txnsRes.json();
+                
+                // Search for our target demo txn
+                const demoTxn = transactions.find(t => t.payment_id === 'demo_pay_ref_4500' || t.failure_code === 'bank_server_down');
+                if (!demoTxn) {
+                    showToast('Demo transaction 101 not found. Please click Reset Transaction to seed it.');
+                    setLoading('btn-demo-step', false, 'Step Decision Pipeline');
+                    return;
+                }
+
+                // Process transaction step
+                const response = await fetch(`${API_BASE}/recovery/run/${demoTxn.id}`, { method: 'POST' });
+                if (!response.ok) throw new Error('Failed to run demo transaction step');
+                const attempt = await response.json();
+                
+                // Fetch updated transaction details
+                const detailRes = await fetch(`${API_BASE}/transactions`);
+                const allTxns = await detailRes.json();
+                const updatedTxn = allTxns.find(t => t.id === demoTxn.id);
+                
+                // Display layout mapping
+                document.getElementById('demo-step-2').className = 'bg-surface-container rounded-lg p-4 border border-indigo-500/50 flex flex-col justify-between shadow-md shadow-indigo-500/10';
+                document.getElementById('demo-diag-text').innerText = attempt.diagnosis.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                document.getElementById('demo-diag-conf').innerText = `Confidence: ${(attempt.confidence * 100).toFixed(0)}%`;
+                
+                document.getElementById('demo-step-3').className = 'bg-surface-container rounded-lg p-4 border border-indigo-500/50 flex flex-col justify-between shadow-md shadow-indigo-500/10';
+                document.getElementById('demo-rec-text').innerText = attempt.ai_recommendation.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                document.getElementById('demo-rec-ev').innerText = `Expected Net: ${formatINR(attempt.expected_recovery_value || 0)}`;
+                
+                document.getElementById('demo-step-4').className = 'bg-surface-container rounded-lg p-4 border border-indigo-500/50 flex flex-col justify-between shadow-md shadow-indigo-500/10';
+                document.getElementById('demo-policy-text').innerText = attempt.policy_decision;
+                document.getElementById('demo-policy-reason').innerText = attempt.policy_block_reason ? `Reason: ${attempt.policy_block_reason}` : 'No overrides';
+                
+                document.getElementById('demo-step-5').className = 'bg-surface-container rounded-lg p-4 border border-indigo-500/50 flex flex-col justify-between shadow-md shadow-indigo-500/10';
+                document.getElementById('demo-outcome-text').innerText = attempt.outcome.replace(/\b\w/g, c => c.toUpperCase());
+                document.getElementById('demo-outcome-net').innerText = `Net Recovered: ${formatINR(attempt.net_recovery || 0)}`;
+                
+                document.getElementById('demo-status-history').innerText = `History: ${updatedTxn.attempts_count} attempts (${updatedTxn.status})`;
+                
+                if (updatedTxn.status === 'recovered') {
+                    showToast('Transaction fully recovered using rotated stateful pipeline!', 'success');
+                    setLoading('btn-demo-step', true, 'Recovered ✓');
+                } else {
+                    showToast(`Attempt ${updatedTxn.attempts_count} completed. Next decision ready.`, 'success');
+                    setLoading('btn-demo-step', false, 'Step Next Decision');
+                }
+                
+                await Promise.all([fetchSummary(), fetchTransactions()]);
+                
+            } catch (err) {
+                console.error(err);
+                showToast(`Demo step failed: ${err.message}`);
+                setLoading('btn-demo-step', false, 'Step Decision Pipeline');
+            }
+        }
+        async function fetchSettings() {
+            try {
+                const response = await fetch(`${API_BASE}/recovery/settings`);
+                if (response.ok) {
+                    const data = await response.json();
+                    currentMode = data.DIAGNOSIS_MODE;
+                    document.getElementById('slider-threshold').value = data.CONFIDENCE_THRESHOLD;
+                    document.getElementById('threshold-val').innerText = parseFloat(data.CONFIDENCE_THRESHOLD).toFixed(2);
+                    updateModeUI(currentMode);
+                }
+            } catch (err) {
+                console.error('Error fetching settings:', err);
+            }
+        }
+
+        function updateModeUI(mode) {
+            const btnLlm = document.getElementById('btn-mode-llm');
+            const btnDet = document.getElementById('btn-mode-det');
+            if (mode === 'llm') {
+                btnLlm.className = "flex-1 py-1 px-2 rounded font-label-sm text-label-sm text-center bg-[#3B82F6] text-white border border-[#3B82F6]";
+                btnDet.className = "flex-1 py-1 px-2 rounded font-label-sm text-label-sm text-center bg-surface-container-high border border-outline-variant text-on-surface-variant hover:bg-surface-variant";
+            } else {
+                btnDet.className = "flex-1 py-1 px-2 rounded font-label-sm text-label-sm text-center bg-[#3B82F6] text-white border border-[#3B82F6]";
+                btnLlm.className = "flex-1 py-1 px-2 rounded font-label-sm text-label-sm text-center bg-surface-container-high border border-outline-variant text-on-surface-variant hover:bg-surface-variant";
+            }
+        }
+
+        async function updateMode(mode) {
+            try {
+                const response = await fetch(`${API_BASE}/recovery/settings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ DIAGNOSIS_MODE: mode })
+                });
+                if (response.ok) {
+                    currentMode = mode;
+                    updateModeUI(mode);
+                    showToast(`Switched diagnosis mode to ${mode === 'llm' ? 'AI (LLM)' : 'Deterministic Rules'}!`, 'success');
+                    await fetchSummary();
+                }
+            } catch (err) {
+                showToast(`Failed to update mode: ${err.message}`);
+            }
+        }
+
         // Initial Load
         window.addEventListener('DOMContentLoaded', () => {
+            fetchSettings();
             fetchSummary();
             fetchTransactions();
+
+            // Set up settings slider change listener
+            document.getElementById('slider-threshold').addEventListener('change', async (e) => {
+                const val = e.target.value;
+                try {
+                    const response = await fetch(`${API_BASE}/recovery/settings`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ CONFIDENCE_THRESHOLD: val })
+                    });
+                    if (response.ok) {
+                        showToast(`Confidence threshold set to ${parseFloat(val).toFixed(2)}`, 'success');
+                        await fetchSummary();
+                    }
+                } catch (err) {
+                    showToast(`Failed to set threshold: ${err.message}`);
+                }
+            });
         });
     </script>
 </body>

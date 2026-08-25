@@ -6,7 +6,7 @@
     <title>Recovery Copilot</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
     <script>
         tailwind.config = {
             darkMode: "class",
@@ -105,394 +105,352 @@
         .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         }
-        .chart-bar { transition: width 1s ease-out; }
+        .timeline-line::after {
+            content: '';
+            position: absolute;
+            top: 2rem;
+            bottom: 0;
+            left: 15px;
+            width: 2px;
+            background-color: #273647;
+        }
     </style>
 </head>
 <body class="bg-background text-on-surface font-body-md min-h-screen">
     <!-- Toast notifications container -->
     <div id="toast-container" class="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none"></div>
 
-    <!-- TopNavBar -->
-    <header class="bg-surface-container dark:bg-surface-container docked full-width top-0 border-b border-outline-variant dark:border-outline-variant flat no shadows flex justify-between items-center w-full px-gutter h-16 max-w-[1600px] mx-auto z-50 sticky">
+    <!-- Header Navigation -->
+    <header class="bg-surface-container border-b border-outline-variant flex justify-between items-center w-full px-gutter h-16 max-w-[1600px] mx-auto z-50 sticky top-0">
         <div class="flex items-center gap-6">
-            <div class="font-headline-md text-headline-md font-bold text-on-surface dark:text-on-surface">Recovery Copilot</div>
-            <nav class="hidden md:flex items-center gap-4">
-                <button id="tab-dashboard" onclick="switchTab('dashboard')" class="text-primary border-b-2 border-primary pb-1 font-label-md text-label-md px-2 py-1">Payment Recovery</button>
-                <button id="tab-b2b" onclick="switchTab('b2b')" class="text-on-surface-variant hover:text-on-surface pb-1 font-label-md text-label-md px-2 py-1">B2B Receivables</button>
-                <div class="relative group">
-                    <button class="text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-variant dark:hover:bg-surface-variant transition-colors font-label-md text-label-md px-2 py-1 rounded flex items-center gap-1">
-                        Settings <span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
-                    </button>
-                    <div class="absolute left-0 top-full mt-1 w-64 bg-surface-container-high border border-outline-variant rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 p-4">
-                        <div class="flex flex-col gap-2">
-                            <label class="font-label-md text-label-md text-on-surface-variant flex justify-between">
-                                <span>Confidence Threshold</span>
-                                <span id="threshold-val" class="text-primary">0.70</span>
-                            </label>
-                            <input id="slider-threshold" type="range" min="0.3" max="0.9" step="0.05" value="0.70" class="w-full h-1 bg-surface-variant rounded-lg appearance-none cursor-pointer accent-[#3B82F6]" oninput="document.getElementById('threshold-val').innerText = parseFloat(this.value).toFixed(2)">
-                            
-                            <div class="border-t border-outline-variant my-2 pt-2">
-                                <label class="font-label-md text-label-md text-on-surface-variant flex justify-between items-center mb-1">
-                                    <span>Diagnosis Mode</span>
-                                </label>
-                                <div class="flex gap-2">
-                                    <button id="btn-mode-llm" onclick="updateMode('llm')" class="flex-1 py-1 px-2 rounded font-label-sm text-label-sm text-center border border-outline-variant bg-surface-variant text-on-surface hover:bg-surface-variant/80">LLM</button>
-                                    <button id="btn-mode-det" onclick="updateMode('deterministic')" class="flex-1 py-1 px-2 rounded font-label-sm text-label-sm text-center border border-outline-variant bg-surface-variant text-on-surface hover:bg-surface-variant/80">Rules</button>
-                                </div>
-                            </div>
-
-                            <div class="border-t border-outline-variant my-2 pt-2">
-                                <button onclick="exportToCSV()" class="w-full py-2 bg-[#3B82F6] hover:bg-blue-600 rounded-lg transition-colors font-label-md text-label-md text-white flex items-center justify-center gap-2">
-                                    <span class="material-symbols-outlined text-[18px]">download</span>
-                                    <span>Export to CSV</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+            <div>
+                <div class="font-headline-md text-headline-sm font-bold text-white flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">security_update_good</span>
+                    RECOVERY COPILOT
                 </div>
-            </nav>
+                <div class="text-[11px] text-on-surface-variant font-medium uppercase tracking-wider">AI-powered recovery with deterministic controls</div>
+            </div>
         </div>
         <div class="flex items-center gap-4">
-            <select id="select-scenario" class="hidden lg:block bg-surface-container border border-outline-variant text-on-surface hover:bg-surface-variant transition-colors rounded-lg px-3 py-2 font-label-md text-label-md focus:outline-none">
-                <option value="baseline">Baseline Mix</option>
-                <option value="card_heavy">Card Heavy Mix</option>
-                <option value="infra_heavy">Infra Heavy Mix</option>
-                <option value="ambiguous_heavy">Ambiguous Heavy Mix</option>
-            </select>
-            <button id="btn-generate" onclick="generateBatch()" class="hidden lg:block px-4 py-2 border border-outline-variant rounded-lg text-on-surface hover:bg-surface-variant transition-all font-label-md text-label-md flex items-center justify-center gap-2">
-                <span>Generate New Batch</span>
-            </button>
-            <button id="btn-run-recovery" onclick="runRecoveryBatch()" class="bg-[#3B82F6] hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-all font-label-md text-label-md flex items-center justify-center gap-2">
-                <span>Run Recovery Batch</span>
-            </button>
-            <button id="btn-run-until-resolved" onclick="runUntilResolved()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-all font-label-md text-label-md flex items-center justify-center gap-2">
-                <span>Run Until Resolved</span>
-            </button>
-            <button id="btn-help" onclick="startTour()" class="p-2 text-on-surface-variant hover:bg-surface-variant rounded-full transition-colors flex items-center justify-center">
-                <span class="material-symbols-outlined" data-icon="help">help</span>
-            </button>
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 mr-1.5 animate-pulse"></span>
+                Demo Environment
+            </span>
+            
+            <!-- Operations & Settings Collapsible Menu -->
+            <div class="relative group">
+                <button class="bg-surface-container-high hover:bg-surface-variant text-on-surface transition-colors font-label-md text-label-md px-3 py-2 rounded-lg border border-outline-variant flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[18px]">settings</span>
+                    <span>Operations</span>
+                    <span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
+                </button>
+                <div class="absolute right-0 top-full mt-1.5 w-72 bg-surface-container-high border border-outline-variant rounded-lg shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 p-4 flex flex-col gap-4">
+                    <div>
+                        <label class="font-label-md text-label-md text-on-surface-variant flex justify-between mb-1">
+                            <span>Confidence Threshold</span>
+                            <span id="threshold-val" class="text-primary font-bold">0.70</span>
+                        </label>
+                        <input id="slider-threshold" type="range" min="0.3" max="0.9" step="0.05" value="0.70" class="w-full h-1 bg-surface-variant rounded-lg appearance-none cursor-pointer accent-primary" oninput="document.getElementById('threshold-val').innerText = parseFloat(this.value).toFixed(2)">
+                    </div>
+                    
+                    <div class="border-t border-outline-variant pt-3">
+                        <label class="font-label-md text-label-md text-on-surface-variant mb-2 block">Diagnosis Mode</label>
+                        <div class="flex gap-2">
+                            <button id="btn-mode-llm" onclick="updateMode('llm')" class="flex-1 py-1.5 rounded font-label-sm text-label-sm text-center border border-outline-variant bg-surface-variant text-on-surface hover:bg-surface-variant/80">LLM</button>
+                            <button id="btn-mode-det" onclick="updateMode('deterministic')" class="flex-1 py-1.5 rounded font-label-sm text-label-sm text-center border border-outline-variant bg-surface-variant text-on-surface hover:bg-surface-variant/80">Rules</button>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-outline-variant pt-3 flex flex-col gap-2">
+                        <label class="font-label-md text-label-md text-on-surface-variant">Batch Operations</label>
+                        <select id="select-scenario" class="bg-surface-container border border-outline-variant text-on-surface hover:bg-surface-variant transition-colors rounded-lg px-2 py-1.5 font-label-md text-label-md focus:outline-none w-full">
+                            <option value="baseline">Baseline Mix</option>
+                            <option value="card_heavy">Card Heavy Mix</option>
+                            <option value="infra_heavy">Infra Heavy Mix</option>
+                            <option value="ambiguous_heavy">Ambiguous Heavy Mix</option>
+                        </select>
+                        <button onclick="generateBatch()" class="w-full py-1.5 border border-outline-variant rounded-lg text-on-surface hover:bg-surface-variant transition-all font-label-md text-label-sm flex items-center justify-center gap-1">
+                            <span class="material-symbols-outlined text-[16px]">shuffle</span>
+                            <span>Generate 60 Txns</span>
+                        </button>
+                        <button onclick="runRecoveryBatch()" class="w-full py-1.5 bg-primary/20 hover:bg-primary/30 border border-primary/30 rounded-lg text-primary transition-all font-label-md text-label-sm flex items-center justify-center gap-1">
+                            <span class="material-symbols-outlined text-[16px]">play_arrow</span>
+                            <span>Run Recovery Pass</span>
+                        </button>
+                        <button onclick="runUntilResolved()" class="w-full py-1.5 bg-indigo-600/30 hover:bg-indigo-600/40 border border-indigo-500/30 rounded-lg text-indigo-300 transition-all font-label-md text-label-sm flex items-center justify-center gap-1">
+                            <span class="material-symbols-outlined text-[16px]">forward</span>
+                            <span>Resolve All</span>
+                        </button>
+                    </div>
+
+                    <div class="border-t border-outline-variant pt-3 flex flex-col gap-2">
+                        <label class="font-label-md text-label-md text-on-surface-variant">Data Tools</label>
+                        <button onclick="exportToCSV()" class="w-full py-1.5 bg-surface-variant hover:bg-surface-variant/80 border border-outline-variant rounded-lg transition-colors font-label-md text-label-sm text-on-surface flex items-center justify-center gap-1.5">
+                            <span class="material-symbols-outlined text-[16px]">download</span>
+                            <span>Export CSV</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </header>
 
-    <main class="max-w-[1600px] mx-auto p-container-padding grid grid-cols-12 gap-card-gap">
-        <!-- Canonical Demo Highlight Box -->
-        <div class="col-span-12 bg-gradient-to-r from-slate-900 to-indigo-950 border-2 border-indigo-500/30 rounded-xl p-6 shadow-xl mb-2">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
-                <div>
-                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 mb-2">Demo Walkthrough</span>
-                    <h2 class="font-headline-md text-headline-md text-white font-bold">Canonical Demo: Recovery Decision Sequence</h2>
-                    <p class="text-on-surface-variant text-sm mt-1">Witness stateful recovery in action. Click below to step through recovery decisions for HDFC transaction 101 (₹4,500 failure due to <code>bank_server_down</code>).</p>
-                </div>
-                <div class="flex gap-3">
-                    <button onclick="resetDemoTxn()" class="px-4 py-2 border border-outline-variant hover:bg-surface-variant text-on-surface font-label-md text-label-md rounded-lg transition-all">
-                        Reset Transaction
-                    </button>
-                    <button id="btn-demo-step" onclick="runDemoTxnStep()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg font-label-md text-label-md transition-all shadow-lg shadow-indigo-600/30 flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[18px]">play_arrow</span>
-                        <span>Step Decision Pipeline</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Detailed Visual Flow Step Cards -->
-            <div id="demo-walkthrough-flow" class="grid grid-cols-1 md:grid-cols-5 gap-4 mt-6">
-                <!-- Step 1: Failure -->
-                <div class="bg-surface-container rounded-lg p-4 border border-outline-variant flex flex-col justify-between">
-                    <div>
-                        <div class="text-[10px] uppercase font-bold text-error tracking-wider mb-1">Step 1: Failure</div>
-                        <div class="font-headline-sm text-white font-bold">₹4,500</div>
-                        <div class="text-xs text-on-surface-variant mt-1">Payment Method: Card</div>
-                        <div class="text-[11px] text-error font-mono mt-2 bg-error/10 px-1.5 py-1 rounded">bank_server_down</div>
-                    </div>
-                </div>
-
-                <!-- Step 2: AI Diagnosis -->
-                <div id="demo-step-2" class="bg-surface-container/40 rounded-lg p-4 border border-outline-variant/30 flex flex-col justify-between opacity-50">
-                    <div>
-                        <div class="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-1">Step 2: AI Diagnosis</div>
-                        <div class="text-sm font-semibold text-white mt-1" id="demo-diag-text">-</div>
-                        <div class="text-xs text-on-surface-variant mt-2" id="demo-diag-conf">Confidence: -</div>
-                    </div>
-                </div>
-
-                <!-- Step 3: History & recommendation -->
-                <div id="demo-step-3" class="bg-surface-container/40 rounded-lg p-4 border border-outline-variant/30 flex flex-col justify-between opacity-50">
-                    <div>
-                        <div class="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-1">Step 3: Stateful EV</div>
-                        <div class="text-xs font-semibold text-white mt-1" id="demo-rec-text">-</div>
-                        <div class="text-[11px] text-primary mt-2" id="demo-rec-ev">Expected Net: -</div>
-                    </div>
-                </div>
-
-                <!-- Step 4: Policy Gate -->
-                <div id="demo-step-4" class="bg-surface-container/40 rounded-lg p-4 border border-outline-variant/30 flex flex-col justify-between opacity-50">
-                    <div>
-                        <div class="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-1">Step 4: Policy Gate</div>
-                        <div class="text-xs font-semibold text-white mt-1" id="demo-policy-text">-</div>
-                        <div class="text-[11px] text-on-surface-variant mt-2" id="demo-policy-reason">Override: -</div>
-                    </div>
-                </div>
-
-                <!-- Step 5: Outcome -->
-                <div id="demo-step-5" class="bg-surface-container/40 rounded-lg p-4 border border-outline-variant/30 flex flex-col justify-between opacity-50">
-                    <div>
-                        <div class="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-1">Step 5: Outcome</div>
-                        <div class="text-sm font-semibold text-white mt-1" id="demo-outcome-text">-</div>
-                        <div class="text-xs text-on-surface-variant mt-2" id="demo-outcome-net">Net Recovered: -</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="mt-4 flex items-center justify-between border-t border-outline-variant/20 pt-4">
-                <div class="text-xs text-on-surface-variant italic">
-                    Note: AI recommends. Policy authorizes. Executor acts. AI never holds capital authority.
-                </div>
-                <div class="flex gap-4 text-xs font-semibold text-indigo-300">
-                    <span id="demo-status-history">History: No attempts</span>
-                </div>
-            </div>
+    <!-- Main Container -->
+    <main class="max-w-[1200px] mx-auto p-container-padding flex flex-col gap-8 pb-20">
+        
+        <!-- Large visual statement / Hero message -->
+        <div class="text-center py-6 border-b border-outline-variant/20">
+            <h1 class="font-headline-lg text-4xl font-extrabold text-white tracking-tight mb-2">
+                AI recommends. Policy authorizes. Executor acts.
+            </h1>
+            <p class="text-on-surface-variant text-base max-w-2xl mx-auto">
+                Every recovery outcome becomes context for the next decision. Guaranteed financial rails for autonomous agents.
+            </p>
         </div>
 
-        <!-- Dashboard / Payment Recovery Tab -->
-        <div id="section-dashboard" class="col-span-12 grid grid-cols-12 gap-card-gap">
-            <!-- Top Section: Stat Cards -->
-            <div class="col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-card-gap">
-                <!-- Card 1 -->
-                <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="font-label-md text-label-md text-on-surface-variant">Net Amount Recovered</span>
-                        <span class="material-symbols-outlined text-success opacity-50" data-icon="payments">payments</span>
+        <!-- DEMO RUNTIME STATE CARD / LOADER -->
+        <div id="service-unavailable-card" class="bg-error/10 border border-error/30 p-6 rounded-xl hidden text-center flex-col items-center justify-center gap-3">
+            <span class="material-symbols-outlined text-4xl text-error">cloud_off</span>
+            <div>
+                <h3 class="font-headline-sm text-white font-bold">RECOVERY SERVICE UNAVAILABLE</h3>
+                <p class="text-on-surface-variant text-sm mt-1">Unable to process this recovery attempt.</p>
+            </div>
+            <button onclick="window.location.reload()" class="px-4 py-2 bg-error/20 hover:bg-error/30 text-error rounded-lg font-medium text-sm transition-all border border-error/30">
+                TRY AGAIN
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- LEFT PANEL: The Story (Failure, Diagnosis, Next Best Action, Policy, Executor, Outcome) -->
+            <div class="lg:col-span-7 flex flex-col gap-6">
+                
+                <!-- SECTION 1 — PAYMENT FAILURE -->
+                <div class="bg-surface-container-high border border-outline-variant rounded-xl p-6 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-error/10 rounded-full blur-2xl pointer-events-none"></div>
+                    <div class="flex justify-between items-start mb-4">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-bold bg-error/15 text-error border border-error/30 uppercase tracking-wider">
+                            <span class="w-1.5 h-1.5 rounded-full bg-error mr-1.5"></span>
+                            Payment Failed
+                        </span>
+                        <div class="text-right">
+                            <span class="text-xs text-on-surface-variant font-mono">Reference</span>
+                            <div class="font-mono text-sm text-white font-semibold">demo_pay_ref_4500</div>
+                        </div>
                     </div>
-                    <div id="net-recovered" class="font-headline-lg text-headline-lg text-success mt-2">₹0</div>
-                    <div class="mt-2 text-success font-label-sm text-label-sm flex items-center gap-1">
-                        <span class="material-symbols-outlined text-[14px]">trending_up</span> +12.5% vs last week
+                    
+                    <div class="flex items-baseline gap-2 mb-3">
+                        <span class="text-4xl font-extrabold text-white font-body-lg">₹4,500</span>
+                        <span class="text-on-surface-variant text-sm">Via Card</span>
                     </div>
-                </div>
-                <!-- Card 2 -->
-                <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors flex flex-col justify-between">
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="font-label-md text-label-md text-on-surface-variant">Overall Recovery Rate</span>
-                        <span class="material-symbols-outlined text-primary opacity-50" data-icon="data_usage">data_usage</span>
-                    </div>
-                    <div class="flex items-end justify-between mt-2">
-                        <div id="recovery-rate" class="font-headline-lg text-headline-lg text-primary">0%</div>
-                        <!-- Simple Circular Progress -->
-                        <div class="relative w-12 h-12">
-                            <svg class="w-full h-full" viewbox="0 0 36 36">
-                                <path class="text-surface-variant stroke-current" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke-width="4"></path>
-                                <path id="recovery-rate-circle" class="text-primary stroke-current transition-all duration-500" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke-dasharray="0, 100" stroke-linecap="round" stroke-width="4"></path>
-                            </svg>
+
+                    <div class="border-t border-outline-variant/20 pt-4 mt-2">
+                        <div class="flex gap-2.5 items-start">
+                            <span class="material-symbols-outlined text-error mt-0.5">report_problem</span>
+                            <div>
+                                <h4 class="font-semibold text-white text-sm">Bank server unavailable</h4>
+                                <p class="text-on-surface-variant text-xs mt-1 leading-relaxed">
+                                    The payment could not be completed because the bank/infrastructure layer was unavailable.
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <!-- Card 3 -->
-                <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="font-label-md text-label-md text-on-surface-variant">Amount Still At Risk</span>
-                        <span class="material-symbols-outlined text-warning opacity-50" data-icon="warning">warning</span>
-                    </div>
-                    <div id="amount-at-risk" class="font-headline-lg text-headline-lg text-warning mt-2">₹0</div>
-                    <div class="mt-2 text-warning font-label-sm text-label-sm flex items-center gap-1">
-                        <span class="material-symbols-outlined text-[14px]">error</span> Needs attention
-                    </div>
-                </div>
-                <!-- Card 4 -->
-                <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="font-label-md text-label-md text-on-surface-variant flex items-center gap-1">
-                            Escalated to Human
-                            <span class="group/tooltip relative inline-flex items-center cursor-help">
-                                <span class="material-symbols-outlined text-[14px] text-on-surface-variant opacity-60 hover:opacity-100">info</span>
-                                <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-surface-container-highest border border-outline-variant text-[10px] text-on-surface font-body-sm rounded shadow-lg opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 z-50 pointer-events-none normal-case font-normal leading-normal">
-                                    Low-confidence cases are never auto-actioned — they're routed to human review, in line with RBI/TRAI compliance norms for automated financial messaging.
-                                </span>
-                            </span>
+
+                <!-- SECTION 2 — AI DIAGNOSIS -->
+                <div class="bg-surface-container-high border border-outline-variant rounded-xl p-6 relative overflow-hidden">
+                    <div class="flex justify-between items-center mb-4 border-b border-outline-variant/10 pb-3">
+                        <h3 class="font-label-md text-label-md font-bold text-white tracking-widest uppercase">AI Diagnosis</h3>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-600/20 text-purple-400 border border-purple-500/30" id="diagnosis-source-badge">
+                            AI
                         </span>
-                        <span class="material-symbols-outlined text-on-surface-variant opacity-50" data-icon="support_agent">support_agent</span>
                     </div>
-                    <div id="escalated-count" class="font-headline-lg text-headline-lg text-on-surface mt-2">0</div>
-                    <div class="mt-2 text-on-surface-variant font-label-sm text-label-sm flex items-center gap-1">
-                        <span class="material-symbols-outlined text-[14px]">schedule</span> 3 urgent
-                    </div>
-                </div>
-                <!-- Card 5 -->
-                <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="font-label-md text-label-md text-on-surface-variant">Promises to Pay</span>
-                        <span class="material-symbols-outlined text-primary opacity-50" data-icon="handshake">handshake</span>
-                    </div>
-                    <div id="promises-amount" class="font-headline-lg text-headline-lg text-primary mt-2">₹0</div>
-                    <div class="mt-2 text-on-surface-variant font-label-sm text-label-sm flex items-center gap-1">
-                        <span id="promises-count">0</span> promised payments
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <span class="text-xs text-on-surface-variant block uppercase tracking-wider font-medium">Diagnosis</span>
+                            <span class="text-base font-bold text-white mt-1 block" id="ai-diagnosis-val">Transient infrastructure failure</span>
+                        </div>
+                        <div>
+                            <span class="text-xs text-on-surface-variant block uppercase tracking-wider font-medium">Confidence</span>
+                            <span class="text-lg font-bold text-purple-400 mt-0.5 block" id="ai-confidence-val">95%</span>
+                        </div>
                     </div>
                 </div>
+
+                <!-- SECTION 5 — POLICY GATE -->
+                <div class="bg-surface-container-high border border-outline-variant rounded-xl p-6">
+                    <div class="flex justify-between items-center mb-4 border-b border-outline-variant/10 pb-3">
+                        <h3 class="font-label-md text-label-md font-bold text-white tracking-widest uppercase">Policy Gate</h3>
+                        <span id="policy-gate-status" class="inline-flex items-center px-3 py-1 rounded text-xs font-extrabold uppercase tracking-wider">
+                            APPROVED
+                        </span>
+                    </div>
+
+                    <div class="text-xs text-on-surface-variant mb-4 font-medium italic">
+                        AI recommends, but policy decides. Guaranteed deterministic rules.
+                    </div>
+
+                    <!-- Simple human-readable checks -->
+                    <div id="policy-rules-list" class="flex flex-col gap-2.5 bg-background/50 p-4 rounded-lg border border-outline-variant/15">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- SECTION 6 — EXECUTION -->
+                <div class="bg-surface-container-high border border-outline-variant rounded-xl p-6">
+                    <div class="flex justify-between items-center mb-4 border-b border-outline-variant/10 pb-3">
+                        <h3 class="font-label-md text-label-md font-bold text-white tracking-widest uppercase">Executor</h3>
+                        <span class="text-xs text-on-surface-variant font-mono">Guaranteed Rail</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <span class="text-xs text-on-surface-variant block uppercase tracking-wider">Approved Action</span>
+                            <span class="text-sm font-semibold text-white font-mono mt-1 block" id="executor-action-val">-</span>
+                        </div>
+                        <div>
+                            <span class="text-xs text-on-surface-variant block uppercase tracking-wider">Execution Outcome</span>
+                            <span class="text-sm font-semibold text-white mt-1 block" id="executor-result-val">-</span>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-outline-variant/10 pt-3 flex items-center gap-2 text-xs text-on-surface-variant">
+                        <span class="material-symbols-outlined text-[16px] text-primary">gavel</span>
+                        <span>Only the policy-approved action can reach the executor.</span>
+                    </div>
+                </div>
+
+                <!-- SECTION 7 — FINAL OUTCOME -->
+                <div id="final-outcome-card" class="bg-surface-container-high border border-outline-variant rounded-xl p-6 transition-all duration-300">
+                    <!-- Populated dynamically -->
+                </div>
+
             </div>
 
-            <!-- Middle Section: Charts -->
-            <div class="col-span-12 lg:col-span-8 bg-surface-container-high rounded-lg border border-outline-variant p-6 flex flex-col">
-                <h2 class="font-headline-sm text-headline-sm mb-6 text-on-surface">Recovery Rate by Failure Type</h2>
-                <div id="failure-bars" class="flex-grow flex flex-col justify-center gap-4">
-                    <!-- Populated dynamically via JS -->
-                    <div class="text-on-surface-variant text-center font-body-md py-8">Loading metrics...</div>
+            <!-- RIGHT PANEL: Timeline, Next Best Action, Benchmark, Audit Drawer, Demo Controls -->
+            <div class="lg:col-span-5 flex flex-col gap-6">
+                
+                <!-- DEMO CONTROLS -->
+                <div class="bg-surface-container-high border border-outline-variant rounded-xl p-6 flex flex-col gap-3">
+                    <h3 class="font-label-md text-label-md font-bold text-white tracking-widest uppercase mb-1">Demo Pipeline</h3>
+                    <div class="flex gap-3">
+                        <button onclick="resetDemoTxn()" class="flex-1 py-2.5 border border-outline-variant hover:bg-surface-variant text-on-surface font-label-md text-label-md rounded-lg transition-all text-center">
+                            RESET DEMO
+                        </button>
+                        <button id="btn-demo-step" onclick="runDemoTxnStep()" class="flex-[1.5] bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg font-label-md text-label-md transition-all shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined text-[18px]">play_arrow</span>
+                            <span>RUN NEXT RECOVERY</span>
+                        </button>
+                    </div>
                 </div>
+
+                <!-- SECTION 4 — NEXT BEST ACTION -->
+                <div class="bg-gradient-to-br from-indigo-950/40 to-surface-container-high border border-indigo-500/20 rounded-xl p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-label-md text-label-md font-bold text-indigo-300 tracking-widest uppercase">Next Best Action</h3>
+                        <span class="material-symbols-outlined text-indigo-400">trending_up</span>
+                    </div>
+
+                    <div class="mb-4">
+                        <span class="text-xs text-on-surface-variant block uppercase tracking-wider">Recommended Pipeline Route</span>
+                        <h4 class="text-base font-bold text-white mt-1 font-mono" id="next-action-val">-</h4>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 border-t border-indigo-500/10 pt-3 mb-3">
+                        <div>
+                            <span class="text-xs text-on-surface-variant block uppercase tracking-wider">Predictive Success</span>
+                            <span class="text-sm font-semibold text-white mt-0.5 block" id="next-prob-val">-</span>
+                        </div>
+                        <div>
+                            <span class="text-xs text-on-surface-variant block uppercase tracking-wider">Expected Value</span>
+                            <span class="text-sm font-semibold text-indigo-400 mt-0.5 block" id="next-ev-val">-</span>
+                        </div>
+                    </div>
+
+                    <p class="text-[11px] text-on-surface-variant leading-relaxed">
+                        Previous recovery attempts are considered when evaluating the next available action.
+                    </p>
+                </div>
+
+                <!-- SECTION 3 — RECOVERY TIMELINE -->
+                <div class="bg-surface-container-high border border-outline-variant rounded-xl p-6">
+                    <h3 class="font-label-md text-label-md font-bold text-white tracking-widest uppercase mb-4">Recovery Timeline</h3>
+                    
+                    <div id="timeline-nodes-container" class="flex flex-col relative">
+                        <!-- Timelines nodes populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- SECTION 8 — BENCHMARK -->
+                <div class="bg-surface-container-high border border-outline-variant rounded-xl p-6">
+                    <div class="mb-4">
+                        <h3 class="font-label-md text-label-md font-bold text-white tracking-widest uppercase">Why This Approach?</h3>
+                        <span class="text-[10px] text-on-surface-variant font-mono uppercase tracking-wider block mt-0.5">Controlled Synthetic Benchmark · 100 Transactions</span>
+                    </div>
+
+                    <div class="flex flex-col gap-3">
+                        <div class="bg-background/40 border border-outline-variant/10 rounded-lg p-3">
+                            <div class="flex justify-between items-center text-xs font-semibold text-on-surface mb-2">
+                                <span>Recovery Rates</span>
+                                <span class="text-[10px] text-success">+7 pp vs Always Retry</span>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <div class="flex justify-between items-center text-[11px]">
+                                    <span class="text-on-surface-variant">Always Retry</span>
+                                    <span class="font-mono text-white">88%</span>
+                                </div>
+                                <div class="flex justify-between items-center text-[11px]">
+                                    <span class="text-on-surface-variant">Rule-Based Recovery</span>
+                                    <span class="font-mono text-white">86%</span>
+                                </div>
+                                <div class="flex justify-between items-center text-[11px] bg-indigo-500/10 border border-indigo-500/20 p-1 px-2 rounded">
+                                    <span class="text-indigo-300 font-bold">AI-Assisted Recovery Copilot</span>
+                                    <span class="font-mono text-indigo-300 font-bold">95%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-background/40 border border-outline-variant/10 rounded-lg p-3">
+                            <div class="text-xs font-semibold text-on-surface mb-2">Net Recovery Revenue</div>
+                            <div class="flex flex-col gap-2">
+                                <div class="flex justify-between items-center text-[11px]">
+                                    <span class="text-on-surface-variant">Always Retry</span>
+                                    <span class="font-mono text-white">₹482,224</span>
+                                </div>
+                                <div class="flex justify-between items-center text-[11px]">
+                                    <span class="text-on-surface-variant">Rule-Based</span>
+                                    <span class="font-mono text-white">₹470,568</span>
+                                </div>
+                                <div class="flex justify-between items-center text-[11px] bg-indigo-500/10 border border-indigo-500/20 p-1 px-2 rounded">
+                                    <span class="text-indigo-300 font-bold">AI-Assisted Copilot</span>
+                                    <span class="font-mono text-indigo-300 font-bold">₹516,545</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
+        </div>
+
+        <!-- SECTION 9 — TECHNICAL AUDIT -->
+        <div class="bg-surface-container-high border border-outline-variant rounded-xl overflow-hidden">
+            <button onclick="toggleAuditDrawer()" class="w-full p-4 flex justify-between items-center font-label-md text-label-md font-bold text-white uppercase tracking-wider hover:bg-surface-variant transition-colors border-b border-outline-variant/20">
+                <span>View Technical Audit</span>
+                <span id="audit-drawer-chevron" class="material-symbols-outlined transition-transform duration-200">expand_more</span>
+            </button>
             
-            <div class="col-span-12 lg:col-span-4 bg-surface-container-high rounded-lg border border-outline-variant p-6 flex flex-col items-center justify-center">
-                <h2 class="font-headline-sm text-headline-sm mb-6 w-full text-left text-on-surface">Actions Taken</h2>
-                <!-- CSS Donut Chart approximation -->
-                <div id="actions-donut" class="relative w-48 h-48 rounded-full bg-surface-variant flex items-center justify-center transition-all duration-500" style="background: conic-gradient(#94A3B8 0% 100%);">
-                    <div class="w-32 h-32 rounded-full bg-surface-container-high flex items-center justify-center flex-col shadow-inner">
-                        <span id="donut-percentage" class="font-headline-lg text-headline-lg text-on-surface">0%</span>
-                        <span id="donut-label" class="font-label-sm text-label-sm text-on-surface-variant">No actions</span>
-                    </div>
-                </div>
-                <div id="actions-legend" class="mt-6 flex flex-wrap justify-center gap-4 w-full">
-                    <!-- Dynamic legend -->
-                </div>
-            </div>
-
-            <!-- Bottom Section: Transactions Table -->
-            <div class="col-span-12 bg-surface-container-high rounded-lg border border-outline-variant overflow-hidden">
-                <div class="p-4 border-b border-outline-variant flex justify-between items-center bg-surface-container-high/80 backdrop-blur-sm sticky top-0 z-10">
-                    <h2 class="font-headline-sm text-headline-sm text-on-surface">Transactions</h2>
-                    <button class="text-on-surface-variant hover:text-on-surface font-label-sm text-label-sm flex items-center gap-1 transition-colors">
-                        <span class="material-symbols-outlined text-[16px]">filter_list</span> Filter
-                    </button>
-                </div>
-                <div class="w-full overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="border-b border-outline-variant text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider bg-surface-container">
-                                <th class="p-3 font-medium">Transaction ID</th>
-                                <th class="p-3 font-medium">Customer</th>
-                                <th class="p-3 font-medium">Amount</th>
-                                <th class="p-3 font-medium">Failure Reason</th>
-                                <th class="p-3 font-medium">Status</th>
-                                <th class="p-3 font-medium text-right">Attempts</th>
-                            </tr>
-                        </thead>
-                        <tbody id="transactions-tbody" class="font-label-md text-label-md">
-                            <!-- Populated dynamically via JS -->
-                            <tr>
-                                <td colspan="6" class="p-8 text-center text-on-surface-variant">Loading transactions...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+            <div id="technical-audit-drawer" class="hidden p-6 bg-background/50 border-t border-outline-variant/10 flex flex-col gap-6">
+                <!-- Programmatically populated with structured cards -->
+                <div class="text-center text-on-surface-variant text-sm py-4">No attempts run yet. Click RUN NEXT RECOVERY to see details.</div>
             </div>
         </div>
 
-        <!-- B2B Receivables Tab -->
-        <div id="section-b2b" class="col-span-12 grid grid-cols-12 gap-card-gap hidden">
-            <!-- Stat Cards for B2B -->
-            <div class="col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-card-gap">
-                <!-- Card 1: Total Overdue -->
-                <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="font-label-md text-label-md text-on-surface-variant">Total Overdue Receivables</span>
-                        <span class="material-symbols-outlined text-warning opacity-50" data-icon="payments">payments</span>
-                    </div>
-                    <div id="b2b-total-overdue" class="font-headline-lg text-headline-lg text-warning mt-2">₹0</div>
-                    <div class="mt-2 text-warning font-label-sm text-label-sm flex items-center gap-1">
-                        <span class="material-symbols-outlined text-[14px]">trending_up</span> Outstanding invoices
-                    </div>
-                </div>
-                <!-- Card 2: Average Days to Collection -->
-                <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="font-label-md text-label-md text-on-surface-variant">Avg Days-to-Collection</span>
-                        <span class="material-symbols-outlined text-primary opacity-50" data-icon="schedule">schedule</span>
-                    </div>
-                    <div id="b2b-avg-days" class="font-headline-lg text-headline-lg text-primary mt-2">0.0 days</div>
-                    <div class="mt-2 text-primary font-label-sm text-label-sm flex items-center gap-1">
-                        <span class="material-symbols-outlined text-[14px]">check_circle</span> Settled payment window
-                    </div>
-                </div>
-                <!-- Card 3: Invoices Escalated -->
-                <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="font-label-md text-label-md text-on-surface-variant">Escalated Invoices</span>
-                        <span class="material-symbols-outlined text-[#adc6ff] opacity-50" data-icon="support_agent">support_agent</span>
-                    </div>
-                    <div id="b2b-escalated-count" class="font-headline-lg text-headline-lg text-on-surface mt-2">0</div>
-                    <div class="mt-2 text-on-surface-variant font-label-sm text-label-sm flex items-center gap-1">
-                        <span class="material-symbols-outlined text-[14px]">warning</span> Human agency collection
-                    </div>
-                </div>
-                <!-- Card 4: Written Off -->
-                <div class="bg-surface-container-high rounded-lg p-4 border border-outline-variant relative overflow-hidden group hover:border-[#334155] transition-colors">
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="font-label-md text-label-md text-on-surface-variant">Written Off Invoices</span>
-                        <span class="material-symbols-outlined text-error opacity-50" data-icon="cancel">cancel</span>
-                    </div>
-                    <div id="b2b-written-off-count" class="font-headline-lg text-headline-lg text-error mt-2">0</div>
-                    <div class="mt-2 text-error font-label-sm text-label-sm flex items-center gap-1">
-                        <span class="material-symbols-outlined text-[14px]">cancel</span> Bad debt written off
-                    </div>
-                </div>
-            </div>
-
-            <!-- B2B Actions Bar -->
-            <div class="col-span-12 flex justify-end gap-4 bg-surface-container-high p-4 rounded-lg border border-outline-variant">
-                <button id="btn-generate-invoices" onclick="generateInvoices()" class="px-4 py-2 border border-outline-variant rounded-lg text-on-surface hover:bg-surface-variant transition-all font-label-md text-label-md flex items-center justify-center gap-2">
-                    <span>Generate Invoices Batch</span>
-                </button>
-                <button id="btn-run-invoice-batch" onclick="runInvoiceBatch()" class="bg-[#3B82F6] hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-all font-label-md text-label-md flex items-center justify-center gap-2">
-                    <span>Run Invoice Escalation</span>
-                </button>
-                <button id="btn-run-invoices-resolved" onclick="runInvoicesUntilResolved()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-all font-label-md text-label-md flex items-center justify-center gap-2">
-                    <span>Run Until Resolved</span>
-                </button>
-            </div>
-
-            <!-- Invoices Table -->
-            <div class="col-span-12 bg-surface-container-high rounded-lg border border-outline-variant overflow-hidden">
-                <div class="p-4 border-b border-outline-variant flex justify-between items-center bg-surface-container-high/80 backdrop-blur-sm sticky top-0 z-10">
-                    <h2 class="font-headline-sm text-headline-sm text-on-surface">B2B Receivables</h2>
-                </div>
-                <div class="w-full overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="border-b border-outline-variant text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider bg-surface-container">
-                                <th class="p-3 font-medium">Invoice ID</th>
-                                <th class="p-3 font-medium">Business Name</th>
-                                <th class="p-3 font-medium">Amount</th>
-                                <th class="p-3 font-medium">Due Date</th>
-                                <th class="p-3 font-medium">Days Overdue</th>
-                                <th class="p-3 font-medium">Status</th>
-                                <th class="p-3 font-medium text-right">Escalation Stage</th>
-                            </tr>
-                        </thead>
-                        <tbody id="invoices-tbody" class="font-label-md text-label-md">
-                            <tr>
-                                <td colspan="7" class="p-8 text-center text-on-surface-variant">No invoices generated yet. Click "Generate Invoices Batch" to begin.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
     </main>
-
-    <!-- Tour Overlay and Tooltip -->
-    <div id="tour-overlay" class="fixed inset-0 bg-black/60 z-[90] hidden transition-opacity duration-300 opacity-0 pointer-events-auto"></div>
-    <div id="tour-tooltip" class="fixed z-[100] bg-surface-container-highest border border-outline-variant rounded-lg p-5 shadow-2xl max-w-sm hidden flex flex-col gap-3 transition-all duration-300 opacity-0 transform translate-y-2 pointer-events-auto">
-        <div class="flex justify-between items-center">
-            <h3 id="tour-title" class="font-headline-sm text-headline-sm text-on-surface">Tour Step Title</h3>
-            <span id="tour-progress" class="font-label-sm text-label-sm text-primary bg-primary/10 px-2 py-0.5 rounded-full">1/5</span>
-        </div>
-        <p id="tour-desc" class="font-body-md text-body-md text-on-surface-variant">Description goes here.</p>
-        <div class="flex justify-between items-center mt-2">
-            <button onclick="closeTour()" class="text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors px-3 py-1.5 rounded hover:bg-surface-variant">Skip Tour</button>
-            <div class="flex gap-2">
-                <button id="tour-prev" onclick="prevTourStep()" class="px-4 py-1.5 border border-outline-variant rounded text-on-surface hover:bg-surface-variant transition-colors font-label-md text-label-md hidden">Back</button>
-                <button id="tour-next" onclick="nextTourStep()" class="bg-[#3B82F6] hover:bg-blue-600 text-white px-4 py-1.5 rounded transition-colors font-label-md text-label-md">Next</button>
-            </div>
-        </div>
-    </div>
 
     <script>
         const API_BASE = window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : '';
+        
         function escapeHTML(str) {
             if (!str) return '';
             return String(str)
@@ -502,6 +460,7 @@
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;');
         }
+        
         const FAILURE_NAMES = {
             'insufficient_funds': 'Insufficient funds',
             'expired_card': 'Expired card',
@@ -512,7 +471,6 @@
             'card_declined_generic': 'Card declined (generic)'
         };
 
-        // Utility to format numbers as INR
         function formatINR(amount) {
             return new Intl.NumberFormat('en-IN', {
                 style: 'currency',
@@ -521,7 +479,6 @@
             }).format(amount);
         }
 
-        // Show toaster notification
         function showToast(message, type = 'error') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -542,235 +499,20 @@
             
             container.appendChild(toast);
             
-            // Trigger animation
             setTimeout(() => {
                 toast.classList.remove('translate-y-2', 'opacity-0');
             }, 10);
             
-            // Auto remove
             setTimeout(() => {
                 toast.classList.add('opacity-0', 'translate-y-2');
                 setTimeout(() => toast.remove(), 300);
             }, 4000);
         }
 
-        // Tour Logic
-        const tourSteps = [
-            {
-                elementId: 'select-scenario',
-                title: 'Data Generation',
-                desc: 'Select different failure distributions to see how the AI adapts its recovery strategy. Try "Card Heavy" for payment method issues.',
-                position: 'bottom-right'
-            },
-            {
-                elementId: 'btn-run-recovery',
-                title: 'Run Recovery Loops',
-                desc: 'Execute a single pass over pending transactions. The AI analyzes the failure reason and decides the best next action.',
-                position: 'bottom-right'
-            },
-            {
-                elementId: 'net-recovered',
-                title: 'Key Metrics',
-                desc: 'Track overall system performance. Notice how "Promises to Pay" captures early intent before settlement.',
-                position: 'bottom'
-            },
-            {
-                elementId: 'failure-bars',
-                title: 'Failure Analytics',
-                desc: 'Understand what is causing transactions to fail, and how successful the AI is at recovering each specific type.',
-                position: 'left'
-            },
-            {
-                elementId: 'transactions-tbody',
-                title: 'AI Audit Trail',
-                desc: 'Click any transaction to expand its timeline. See exactly what diagnosis the AI made, its reasoning, and the action taken for every attempt.',
-                position: 'top'
-            }
-        ];
-
-        let currentTourStep = 0;
-        let highlightedElement = null;
-        let originalZIndex = '';
-        let originalPosition = '';
-        let originalBg = '';
-
-        function startTour() {
-            currentTourStep = 0;
-            const overlay = document.getElementById('tour-overlay');
-            const tooltip = document.getElementById('tour-tooltip');
-            
-            overlay.classList.remove('hidden');
-            tooltip.classList.remove('hidden');
-            
-            setTimeout(() => {
-                overlay.classList.remove('opacity-0');
-            }, 10);
-            
-            renderTourStep();
-        }
-
-        function renderTourStep() {
-            const step = tourSteps[currentTourStep];
-            if (!step) {
-                closeTour();
-                return;
-            }
-
-            if (highlightedElement) {
-                highlightedElement.style.zIndex = originalZIndex;
-                highlightedElement.style.position = originalPosition;
-                highlightedElement.style.backgroundColor = originalBg;
-                highlightedElement.classList.remove('ring-4', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
-            }
-
-            let target = document.getElementById(step.elementId);
-            
-            if (currentTourStep === 2 || currentTourStep === 3 || currentTourStep === 4) {
-                 target = target.closest('.bg-surface-container-high');
-            }
-
-            if (!target) {
-                nextTourStep();
-                return;
-            }
-
-            highlightedElement = target;
-            originalZIndex = target.style.zIndex;
-            originalPosition = target.style.position;
-            originalBg = target.style.backgroundColor;
-
-            const computedStyle = window.getComputedStyle(target);
-            if (computedStyle.position === 'static') {
-                target.style.position = 'relative';
-            }
-            target.style.zIndex = '95';
-            
-            target.classList.add('ring-4', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
-            
-            if (currentTourStep < 4) {
-                 target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            } else {
-                 target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-
-            document.getElementById('tour-title').innerText = step.title;
-            document.getElementById('tour-desc').innerText = step.desc;
-            document.getElementById('tour-progress').innerText = `${currentTourStep + 1}/${tourSteps.length}`;
-            
-            const prevBtn = document.getElementById('tour-prev');
-            const nextBtn = document.getElementById('tour-next');
-            
-            if (currentTourStep === 0) {
-                prevBtn.classList.add('hidden');
-            } else {
-                prevBtn.classList.remove('hidden');
-            }
-            
-            if (currentTourStep === tourSteps.length - 1) {
-                nextBtn.innerText = 'Finish';
-            } else {
-                nextBtn.innerText = 'Next';
-            }
-
-            positionTooltip(target, step.position);
-            
-            const tooltip = document.getElementById('tour-tooltip');
-            setTimeout(() => {
-                tooltip.classList.remove('opacity-0', 'translate-y-2');
-            }, 10);
-        }
-
-        function positionTooltip(target, positionPreference) {
-            const tooltip = document.getElementById('tour-tooltip');
-            const targetRect = target.getBoundingClientRect();
-            
-            tooltip.style.top = '';
-            tooltip.style.left = '';
-            
-            const tooltipRect = tooltip.getBoundingClientRect();
-            const tooltipWidth = tooltipRect.width || 384; 
-            const tooltipHeight = tooltipRect.height || 160; 
-            const padding = 16;
-            
-            let top, left;
-
-            if (positionPreference === 'bottom') {
-                top = targetRect.bottom + padding;
-                left = targetRect.left + (targetRect.width / 2) - (tooltipWidth / 2);
-            } else if (positionPreference === 'bottom-right') {
-                top = targetRect.bottom + padding;
-                left = targetRect.right - tooltipWidth;
-            } else if (positionPreference === 'top') {
-                top = targetRect.top - tooltipHeight - padding;
-                left = targetRect.left + (targetRect.width / 2) - (tooltipWidth / 2);
-            } else if (positionPreference === 'left') {
-                top = targetRect.top + (targetRect.height / 2) - (tooltipHeight / 2);
-                left = targetRect.left - tooltipWidth - padding;
-                if (left < 10) left = targetRect.right + padding;
-            } else {
-                top = targetRect.top + (targetRect.height / 2) - (tooltipHeight / 2);
-                left = targetRect.right + padding;
-            }
-
-            if (left < 10) left = 10;
-            if (left + tooltipWidth > window.innerWidth - 10) left = window.innerWidth - tooltipWidth - 10;
-            if (top < 10) top = targetRect.bottom + padding;
-            if (top + tooltipHeight > window.innerHeight - 10) top = targetRect.top - tooltipHeight - padding;
-
-            tooltip.style.top = `${top}px`;
-            tooltip.style.left = `${left}px`;
-        }
-
-        function nextTourStep() {
-            if (currentTourStep < tourSteps.length - 1) {
-                const tooltip = document.getElementById('tour-tooltip');
-                tooltip.classList.add('opacity-0', 'translate-y-2');
-                setTimeout(() => {
-                    currentTourStep++;
-                    renderTourStep();
-                }, 200);
-            } else {
-                closeTour();
-            }
-        }
-
-        function prevTourStep() {
-            if (currentTourStep > 0) {
-                const tooltip = document.getElementById('tour-tooltip');
-                tooltip.classList.add('opacity-0', 'translate-y-2');
-                setTimeout(() => {
-                    currentTourStep--;
-                    renderTourStep();
-                }, 200);
-            }
-        }
-
-        function closeTour() {
-            const overlay = document.getElementById('tour-overlay');
-            const tooltip = document.getElementById('tour-tooltip');
-            
-            overlay.classList.add('opacity-0');
-            tooltip.classList.add('opacity-0', 'translate-y-2');
-            
-            if (highlightedElement) {
-                highlightedElement.style.zIndex = originalZIndex;
-                highlightedElement.style.position = originalPosition;
-                highlightedElement.style.backgroundColor = originalBg;
-                highlightedElement.classList.remove('ring-4', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
-                highlightedElement = null;
-            }
-            
-            setTimeout(() => {
-                overlay.classList.add('hidden');
-                tooltip.classList.add('hidden');
-            }, 300);
-        }
-
-        // Set Loading State
         function setLoading(btnId, isLoading, text) {
             const btn = document.getElementById(btnId);
             if (!btn) return;
-            const span = btn.querySelector('span');
+            const span = btn.querySelector('span:last-of-type') || btn;
             
             if (isLoading) {
                 btn.disabled = true;
@@ -783,524 +525,432 @@
             }
         }
 
-        // Fetch Dashboard Summary
-        async function fetchSummary() {
-            try {
-                const response = await fetch(`${API_BASE}/dashboard/summary`);
-                if (!response.ok) throw new Error('Failed to fetch summary metrics');
-                const data = await response.json();
-                
-                // 1. Update stats
-                document.getElementById('net-recovered').innerText = formatINR(data.net_amount_recovered);
-                document.getElementById('recovery-rate').innerText = `${(data.overall_recovery_rate * 100).toFixed(1)}%`;
-                document.getElementById('amount-at-risk').innerText = formatINR(data.amount_still_at_risk);
-                document.getElementById('escalated-count').innerText = data.escalated_count;
-                document.getElementById('promises-count').innerText = data.promise_to_pay_count;
-                document.getElementById('promises-amount').innerText = formatINR(data.promised_amount_total);
-                
-                // 2. Update recovery rate circular progress bar
-                const circle = document.getElementById('recovery-rate-circle');
-                if (circle) {
-                    const rate = data.overall_recovery_rate * 100;
-                    circle.setAttribute('stroke-dasharray', `${rate.toFixed(1)}, 100`);
-                }
-
-                // 3. Render Failure mix bars
-                renderFailureBars(data.by_failure_type);
-
-                // 4. Render Donut Chart
-                renderDonutChart(data.action_counts);
-
-            } catch (error) {
-                console.error(error);
-                showToast(`Unable to load dashboard summary metrics: ${error.message}`);
+        let isAuditDrawerOpen = false;
+        function toggleAuditDrawer() {
+            const drawer = document.getElementById('technical-audit-drawer');
+            const chevron = document.getElementById('audit-drawer-chevron');
+            isAuditDrawerOpen = !isAuditDrawerOpen;
+            if (isAuditDrawerOpen) {
+                drawer.classList.remove('hidden');
+                chevron.classList.add('rotate-180');
+            } else {
+                drawer.classList.add('hidden');
+                chevron.classList.remove('rotate-180');
             }
         }
 
-        // Render failure bars
-        function renderFailureBars(byFailureType) {
-            const container = document.getElementById('failure-bars');
+        // REDESIGNED CORE INTEGRATION: Refresh Demo Story Page
+        async function refreshDemoStory() {
+            try {
+                // Find ID of HDFC bank_server_down transaction
+                const txnsRes = await fetch(`${API_BASE}/transactions`);
+                if (!txnsRes.ok) throw new Error('Failed to query transactions list');
+                const transactions = await txnsRes.json();
+                
+                const demoTxn = transactions.find(t => t.payment_id === 'demo_pay_ref_4500' || t.failure_code === 'bank_server_down');
+                if (!demoTxn) {
+                    // Prepopulate with blank outcome states if demo not seeded
+                    renderEmptyDemoState();
+                    return;
+                }
+
+                // Query attempts
+                const response = await fetch(`${API_BASE}/recovery/audit/${demoTxn.id}`);
+                if (!response.ok) throw new Error('Failed to query audit trail');
+                const attempts = await response.json();
+
+                renderTimeline(attempts);
+                renderLatestAttempt(attempts, demoTxn);
+                renderTechnicalAuditDrawer(attempts);
+                document.getElementById('service-unavailable-card').classList.add('hidden');
+            } catch (err) {
+                console.error(err);
+                document.getElementById('service-unavailable-card').classList.remove('hidden');
+                showToast(`Unable to load demo pipeline context: ${err.message}`);
+            }
+        }
+
+        function renderEmptyDemoState() {
+            document.getElementById('ai-diagnosis-val').innerText = 'Pending pipeline run';
+            document.getElementById('ai-confidence-val').innerText = '-';
+            document.getElementById('policy-gate-status').className = 'inline-flex items-center px-3 py-1 rounded text-xs font-extrabold bg-surface-variant text-on-surface-variant uppercase tracking-wider';
+            document.getElementById('policy-gate-status').innerText = 'Idle';
+            document.getElementById('policy-rules-list').innerHTML = `<div class="text-[11px] text-on-surface-variant">Click RUN NEXT RECOVERY to seed pipeline.</div>`;
+            document.getElementById('executor-action-val').innerText = '-';
+            document.getElementById('executor-result-val').innerText = '-';
+            document.getElementById('next-action-val').innerText = 'Run Pipeline';
+            document.getElementById('next-prob-val').innerText = '-';
+            document.getElementById('next-ev-val').innerText = '-';
+            document.getElementById('final-outcome-card').innerHTML = `
+                <div class="text-center text-on-surface-variant py-4 flex flex-col items-center gap-1">
+                    <span class="material-symbols-outlined text-3xl">hourglass_empty</span>
+                    <span class="font-bold text-sm">Demo not started yet</span>
+                </div>
+            `;
+            document.getElementById('timeline-nodes-container').innerHTML = `<div class="text-on-surface-variant text-xs py-4 text-center">Timeline will show attempt progress.</div>`;
+        }
+
+        function renderTimeline(attempts) {
+            const container = document.getElementById('timeline-nodes-container');
             container.innerHTML = '';
             
-            const entries = Object.entries(byFailureType);
-            if (entries.length === 0) {
-                container.innerHTML = `<div class="text-on-surface-variant text-center py-4 font-body-sm">No transaction failures recorded yet.</div>`;
+            if (attempts.length === 0) {
+                container.innerHTML = `<div class="text-on-surface-variant text-xs py-4 text-center">Timeline will show attempt progress.</div>`;
                 return;
             }
-            
-            // Sort by total failures
-            entries.sort((a, b) => b[1].total - a[1].total);
-            
-            entries.forEach(([code, stats]) => {
-                const name = FAILURE_NAMES[code] || code.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                const ratePct = (stats.recovery_rate * 100).toFixed(0);
-                
-                const barHtml = `
-                    <div class="w-full">
-                        <div class="flex justify-between mb-1 font-label-sm text-label-sm text-on-surface-variant">
-                            <span>${name} (${stats.recovered}/${stats.total})</span>
-                            <span>${ratePct}%</span>
+
+            attempts.forEach((attempt, index) => {
+                const isFirst = index === 0;
+                const isLast = index === attempts.length - 1;
+
+                let outcomeText = 'Failed';
+                let outcomeClass = 'text-error';
+                if (attempt.outcome === 'recovered') {
+                    outcomeText = 'Recovered ✓';
+                    outcomeClass = 'text-success';
+                } else if (attempt.outcome === 'escalated') {
+                    outcomeText = 'Escalated';
+                    outcomeClass = 'text-primary';
+                }
+
+                let policyIcon = attempt.policy_decision === 'APPROVED' ? 'check_circle' : 'cancel';
+                let policyClass = attempt.policy_decision === 'APPROVED' ? 'text-success' : 'text-error';
+
+                let nodeHtml = `
+                    <div class="relative pl-10 timeline-line pb-6">
+                        <div class="absolute left-0 top-0.5 w-8 h-8 rounded-full bg-surface-variant flex items-center justify-center border border-outline-variant font-bold text-xs text-white z-10">
+                            ${attempt.attempt_number}
                         </div>
-                        <div class="w-full bg-surface-variant rounded-full h-2">
-                            <div class="bg-[#3B82F6] h-2 rounded-full chart-bar" style="width: ${ratePct}%"></div>
+                        <div class="flex flex-col gap-2">
+                            <div class="flex justify-between items-center">
+                                <h4 class="font-semibold text-white text-sm uppercase tracking-wider">Attempt ${attempt.attempt_number}</h4>
+                                <span class="text-[10px] text-on-surface-variant font-mono">${new Date(attempt.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+
+                            <div class="bg-[#1a2436] rounded-lg border border-outline-variant/20 p-3 flex flex-col gap-2.5">
+                                <div>
+                                    <span class="text-[10px] uppercase text-on-surface-variant font-mono tracking-wider">AI Recommendation</span>
+                                    <div class="text-xs font-bold text-white mt-0.5 font-mono">${escapeHTML(attempt.ai_recommendation.replace(/_/g, ' '))}</div>
+                                </div>
+                                <div class="flex justify-between border-t border-outline-variant/10 pt-2 text-[11px]">
+                                    <span class="text-on-surface-variant flex items-center gap-1">
+                                        <span class="material-symbols-outlined text-[14px] ${policyClass}">${policyIcon}</span>
+                                        Policy: <span class="font-bold ${policyClass}">${attempt.policy_decision}</span>
+                                    </span>
+                                    <span class="text-on-surface-variant font-mono">Execution: <span class="text-white">${escapeHTML(attempt.action_taken.replace(/_/g, ' '))}</span></span>
+                                </div>
+                                <div class="flex justify-between border-t border-outline-variant/10 pt-2 text-[11px]">
+                                    <span class="text-on-surface-variant">Outcome: <span class="font-bold ${outcomeClass}">${outcomeText}</span></span>
+                                    <span class="text-on-surface-variant font-mono font-semibold ${attempt.net_recovery >= 0 ? 'text-success' : 'text-error'}">${formatINR(attempt.net_recovery || 0)}</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 `;
-                container.insertAdjacentHTML('beforeend', barHtml);
+
+                container.insertAdjacentHTML('beforeend', nodeHtml);
+
+                // Add transition explanation
+                if (!isLast) {
+                    let transitionHtml = `
+                        <div class="relative pl-10 pb-4">
+                            <div class="bg-indigo-950/20 border border-indigo-500/10 rounded-lg p-2 text-center text-[10px] text-indigo-300 font-medium">
+                                RECOVERY CONTEXT UPDATED: "The previous recovery action failed."
+                            </div>
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', transitionHtml);
+                }
             });
         }
 
-        // Render donut chart
-        function renderDonutChart(actionCounts) {
-            const donut = document.getElementById('actions-donut');
-            const pctText = document.getElementById('donut-percentage');
-            const lblText = document.getElementById('donut-label');
-            const legend = document.getElementById('actions-legend');
+        function renderLatestAttempt(attempts, txn) {
+            const btnStep = document.getElementById('btn-demo-step');
             
-            legend.innerHTML = '';
-            
-            if (!actionCounts) {
-                donut.style.background = 'conic-gradient(#94A3B8 0% 100%)';
-                pctText.innerText = '0%';
-                lblText.innerText = 'No actions';
-                return;
-            }
-            
-            const total = Object.values(actionCounts).reduce((a, b) => a + b, 0);
-            
-            if (total === 0) {
-                donut.style.background = 'conic-gradient(#94A3B8 0% 100%)';
-                pctText.innerText = '0%';
-                lblText.innerText = 'No actions';
+            if (attempts.length === 0) {
+                renderEmptyDemoState();
                 return;
             }
 
-            const colors = {
-                retry: '#3B82F6',
-                nudge: '#60A5FA',
-                new_method: '#93C5FD',
-                escalate: '#94A3B8'
-            };
+            const attempt = attempts[attempts.length - 1];
 
-            const labels = {
-                retry: 'Retry',
-                nudge: 'Nudge',
-                new_method: 'New Method',
-                escalate: 'Escalate'
-            };
+            // 1. AI Diagnosis Card
+            document.getElementById('ai-diagnosis-val').innerText = escapeHTML(FAILURE_NAMES[attempt.diagnosis] || attempt.diagnosis.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
+            document.getElementById('ai-confidence-val').innerText = `${Math.round(attempt.confidence * 100)}%`;
+            
+            const diagBadge = document.getElementById('diagnosis-source-badge');
+            if (attempt.diagnosis_source === 'AI') {
+                diagBadge.className = 'inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-600/20 text-purple-400 border border-purple-500/30';
+                diagBadge.innerText = 'AI';
+            } else if (attempt.diagnosis_source) {
+                diagBadge.className = 'inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-orange-600/20 text-orange-400 border border-orange-500/30';
+                diagBadge.innerText = `FALLBACK (${attempt.diagnosis_source})`;
+            }
 
-            // Calculate slices
-            let currentOffset = 0;
-            const slices = [];
-            const activeLegend = [];
-
-            Object.entries(actionCounts).forEach(([action, count]) => {
-                if (count > 0) {
-                    const pct = (count / total) * 100;
-                    const end = currentOffset + pct;
-                    slices.push(`${colors[action]} ${currentOffset.toFixed(1)}% ${end.toFixed(1)}%`);
-                    currentOffset = end;
-                    
-                    activeLegend.push({
-                        label: labels[action],
-                        count: count,
-                        pct: pct.toFixed(0),
-                        color: colors[action]
-                    });
-                }
-            });
-
-            if (slices.length > 0) {
-                donut.style.background = `conic-gradient(${slices.join(', ')})`;
-                
-                // Show highest slice in middle
-                const highest = Object.entries(actionCounts).sort((a, b) => b[1] - a[1])[0];
-                const highestPct = ((highest[1] / total) * 100).toFixed(0);
-                pctText.innerText = `${highestPct}%`;
-                lblText.innerText = labels[highest[0]];
+            // 2. Policy Gate Rules Card
+            const policyBadge = document.getElementById('policy-gate-status');
+            if (attempt.policy_decision === 'APPROVED') {
+                policyBadge.className = 'inline-flex items-center px-3 py-1 rounded text-xs font-extrabold bg-success/15 text-success border border-success/30 uppercase tracking-wider';
+                policyBadge.innerText = 'APPROVED';
             } else {
-                donut.style.background = 'conic-gradient(#94A3B8 0% 100%)';
-                pctText.innerText = '0%';
-                lblText.innerText = 'No actions';
+                policyBadge.className = 'inline-flex items-center px-3 py-1 rounded text-xs font-extrabold bg-error/15 text-error border border-error/30 uppercase tracking-wider';
+                policyBadge.innerText = 'BLOCKED';
             }
 
-            // Render legend
-            activeLegend.forEach(item => {
-                const itemHtml = `
-                    <div class="flex items-center gap-2 font-label-sm text-label-sm">
-                        <span class="w-3 h-3 rounded-full" style="background-color: ${item.color}"></span>
-                        <span>${item.label} (${item.count} - ${item.pct}%)</span>
+            let rulesListContainer = document.getElementById('policy-rules-list');
+            rulesListContainer.innerHTML = '';
+            if (attempt.rules_evaluated) {
+                try {
+                    const rules = JSON.parse(attempt.rules_evaluated);
+                    rules.forEach(r => {
+                        const ruleHtml = `
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="flex items-center gap-1.5 font-medium ${r.passed ? 'text-success' : 'text-error'}">
+                                    <span>${r.passed ? '✓' : '✕'}</span>
+                                    <span>${escapeHTML(r.rule)}</span>
+                                </span>
+                                <span class="text-on-surface-variant font-mono text-[11px]">${escapeHTML(r.detail)}</span>
+                            </div>
+                        `;
+                        rulesListContainer.insertAdjacentHTML('beforeend', ruleHtml);
+                    });
+                } catch (e) {
+                    rulesListContainer.innerHTML = `<div class="text-xs text-on-surface-variant">${escapeHTML(attempt.rules_evaluated)}</div>`;
+                }
+            }
+
+            // 3. Executor
+            document.getElementById('executor-action-val').innerText = escapeHTML(attempt.action_taken.replace(/_/g, ' '));
+            document.getElementById('executor-result-val').innerText = attempt.outcome.charAt(0).toUpperCase() + attempt.outcome.slice(1);
+
+            // 4. Next Best Action (Stateful context mapping prediction logic)
+            if (txn.status === 'recovered' || txn.status === 'lost') {
+                document.getElementById('next-action-val').innerText = 'Process Complete';
+                document.getElementById('next-prob-val').innerText = '0%';
+                document.getElementById('next-ev-val').innerText = '₹0';
+            } else {
+                // Approximate what next action is based on rules or prediction (read from latest attempt predicted fields)
+                document.getElementById('next-action-val').innerText = escapeHTML(attempt.ai_recommendation.replace(/_/g, ' '));
+                document.getElementById('next-prob-val').innerText = `${Math.round((attempt.ai_predicted_probability || 0) * 100)}%`;
+                document.getElementById('next-ev-val').innerText = formatINR(attempt.expected_recovery_value || 0);
+            }
+
+            // 5. Final Outcome Card
+            let outcomeContainer = document.getElementById('final-outcome-card');
+            if (txn.status === 'recovered') {
+                outcomeContainer.className = 'bg-success/10 border border-success/30 rounded-xl p-6 flex flex-col gap-3 transition-all duration-300';
+                outcomeContainer.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-bold bg-success/15 text-success border border-success/30 uppercase tracking-wider">
+                            <span class="w-1.5 h-1.5 rounded-full bg-success mr-1.5"></span>
+                            PAYMENT RECOVERED
+                        </span>
+                        <span class="text-xs font-bold text-success font-mono">Net recovered</span>
+                    </div>
+                    <div class="flex justify-between items-baseline mt-1">
+                        <span class="text-3xl font-extrabold text-white">₹4,500</span>
+                        <span class="text-2xl font-bold text-success">${formatINR(attempt.net_recovery || 0)}</span>
+                    </div>
+                    <div class="text-xs text-on-surface-variant border-t border-success/20 pt-3 mt-1 flex items-center justify-between">
+                        <span>Recovered via: <span class="font-bold text-white">${escapeHTML(attempt.action_taken.replace(/_/g, ' '))}</span></span>
+                        <span>Total cost: <span class="font-mono">${formatINR(attempt.cost || 0)}</span></span>
                     </div>
                 `;
-                legend.insertAdjacentHTML('beforeend', itemHtml);
+                setLoading('btn-demo-step', true, 'RECOVERED ✓');
+                document.getElementById('btn-demo-step').className = 'flex-[1.5] bg-success/20 border border-success/30 text-success py-2.5 rounded-lg font-label-md text-label-md transition-all cursor-not-allowed flex items-center justify-center gap-2';
+            } else if (txn.status === 'lost') {
+                outcomeContainer.className = 'bg-error/10 border border-error/30 rounded-xl p-6 flex flex-col gap-3 transition-all duration-300';
+                outcomeContainer.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-bold bg-error/15 text-error border border-error/30 uppercase tracking-wider">
+                            <span class="w-1.5 h-1.5 rounded-full bg-error mr-1.5"></span>
+                            PAYMENT NOT RECOVERED
+                        </span>
+                        <span class="text-xs font-bold text-error font-mono">Net recovery</span>
+                    </div>
+                    <div class="flex justify-between items-baseline mt-1">
+                        <span class="text-3xl font-extrabold text-white">₹4,500</span>
+                        <span class="text-2xl font-bold text-error">${formatINR(attempt.net_recovery || 0)}</span>
+                    </div>
+                    <div class="text-xs text-on-surface-variant border-t border-error/20 pt-3 mt-1 flex items-center justify-between">
+                        <span>Status: <span class="font-bold text-white">LOST</span></span>
+                        <span>Total cost: <span class="font-mono">${formatINR(attempt.cost || 0)}</span></span>
+                    </div>
+                `;
+                setLoading('btn-demo-step', true, 'LOST ✕');
+                document.getElementById('btn-demo-step').className = 'flex-[1.5] bg-error/25 border border-error/30 text-error py-2.5 rounded-lg font-label-md text-label-md transition-all cursor-not-allowed flex items-center justify-center gap-2';
+            } else {
+                outcomeContainer.className = 'bg-warning/10 border border-warning/30 rounded-xl p-6 flex flex-col gap-3 transition-all duration-300';
+                outcomeContainer.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-bold bg-warning/15 text-warning border border-warning/30 uppercase tracking-wider">
+                            <span class="w-1.5 h-1.5 rounded-full bg-warning mr-1.5"></span>
+                            RECOVERY IN PROGRESS
+                        </span>
+                    </div>
+                    <div class="text-xs text-on-surface-variant mt-2 leading-relaxed">
+                        Currently evaluated attempt N°${attempts.length} has finished. Waiting for the next execution step or human escalation path.
+                    </div>
+                `;
+                setLoading('btn-demo-step', false, 'RUN NEXT RECOVERY');
+                document.getElementById('btn-demo-step').className = 'flex-[1.5] bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg font-label-md text-label-md transition-all shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2';
+            }
+        }
+
+        function renderTechnicalAuditDrawer(attempts) {
+            const drawer = document.getElementById('technical-audit-drawer');
+            drawer.innerHTML = '';
+
+            if (attempts.length === 0) {
+                drawer.innerHTML = `<div class="text-center text-on-surface-variant text-sm py-4">No attempts run yet. Click RUN NEXT RECOVERY to see details.</div>`;
+                return;
+            }
+
+            attempts.forEach(attempt => {
+                const dateString = new Date(attempt.timestamp).toLocaleString('en-IN');
+                
+                const auditCard = `
+                    <div class="bg-surface-container-high border border-outline-variant/20 rounded-lg p-5">
+                        <div class="flex justify-between items-center border-b border-outline-variant/10 pb-3 mb-4">
+                            <span class="font-bold text-white text-sm">Attempt ${attempt.attempt_number} Overview</span>
+                            <span class="text-xs text-on-surface-variant">${dateString}</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs text-on-surface-variant">
+                            <div class="flex flex-col gap-2">
+                                <div>Diagnosis: <span class="font-semibold text-white">${escapeHTML(attempt.diagnosis)}</span></div>
+                                <div>Diagnosis Source: <span class="font-semibold text-white">${escapeHTML(attempt.diagnosis_source || 'deterministic')}</span></div>
+                                <div>Confidence: <span class="font-semibold text-white">${attempt.confidence ? Math.round(attempt.confidence * 100) : 0}%</span></div>
+                                <div>Fallback Status: <span class="font-semibold text-white">${escapeHTML(attempt.fallback_status || 'Inactive')}</span></div>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <div>AI Recommendation: <span class="font-semibold text-white font-mono">${escapeHTML(attempt.ai_recommendation)}</span></div>
+                                <div>Predicted Probability: <span class="font-semibold text-white">${attempt.ai_predicted_probability ? Math.round(attempt.ai_predicted_probability * 100) : 0}%</span></div>
+                                <div>AI Reasoning: <span class="font-semibold text-white">${escapeHTML(attempt.ai_reasoning || 'None')}</span></div>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <div>Policy Decision: <span class="font-semibold text-white">${escapeHTML(attempt.policy_decision)}</span></div>
+                                <div>Policy Override Reason: <span class="font-semibold text-white">${escapeHTML(attempt.policy_override_reason || 'None')}</span></div>
+                                <div>Approved Action: <span class="font-semibold text-white font-mono">${escapeHTML(attempt.action_taken)}</span></div>
+                                <div>Execution Result: <span class="font-semibold text-white">${escapeHTML(attempt.outcome)}</span></div>
+                            </div>
+                        </div>
+                        <div class="border-t border-outline-variant/10 pt-3 mt-4 flex gap-4 text-xs font-mono justify-end">
+                            <div>Recovery amount: <span class="text-white">${formatINR(attempt.recovery_amount || 0)}</span></div>
+                            <div>Cost: <span class="text-white">${formatINR(attempt.cost || 0)}</span></div>
+                            <div>Net recovery: <span class="font-bold ${attempt.net_recovery >= 0 ? 'text-success' : 'text-error'}">${formatINR(attempt.net_recovery || 0)}</span></div>
+                        </div>
+                    </div>
+                `;
+                drawer.insertAdjacentHTML('beforeend', auditCard);
             });
         }
 
-        // Fetch Transactions
-        async function fetchTransactions() {
+        async function resetDemoTxn() {
+            setLoading('btn-demo-step', true, 'Resetting...');
             try {
-                const response = await fetch(`${API_BASE}/transactions`);
-                if (!response.ok) throw new Error('Failed to fetch transactions');
-                const transactions = await response.json();
-                
-                const tbody = document.getElementById('transactions-tbody');
-                tbody.innerHTML = '';
-                
-                if (transactions.length === 0) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="6" class="p-8 text-center text-on-surface-variant">No transactions found. Click "Generate New Batch" to start.</td>
-                        </tr>
-                    `;
-                    return;
-                }
-                
-                // Sort by ID descending to show newest first
-                transactions.sort((a, b) => b.id - a.id);
-
-                transactions.forEach(txn => {
-                    const failureName = FAILURE_NAMES[txn.failure_code] || txn.failure_code.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                    
-                    let badgeClass = 'bg-surface-variant text-on-surface-variant';
-                    let statusLabel = 'Failed';
-                    
-                    if (txn.status === 'recovered') {
-                        badgeClass = 'bg-success/15 text-success';
-                        statusLabel = 'Recovered';
-                    } else if (txn.status === 'lost') {
-                        badgeClass = 'bg-error/15 text-error';
-                        statusLabel = 'Lost';
-                    } else if (txn.status === 'pending') {
-                        badgeClass = 'bg-warning/15 text-warning';
-                        statusLabel = 'Pending';
-                    } else if (txn.status === 'escalated') {
-                        badgeClass = 'bg-[#adc6ff]/20 text-[#adc6ff] border border-[#adc6ff]/30';
-                        statusLabel = 'Escalated';
-                    }
-
-                    const rowHtml = `
-                        <tr class="border-b border-outline-variant hover:bg-[#334155]/50 transition-colors cursor-pointer group" onclick="toggleAuditTrail(this, ${txn.id})">
-                            <td class="p-3 flex items-center gap-2 text-primary">
-                                <span class="chevron-icon material-symbols-outlined text-[16px] transition-transform duration-200">chevron_right</span>
-                                TRX-${txn.id}
-                            </td>
-                            <td class="p-3 text-on-surface">Cust-${escapeHTML(txn.customer_id)}</td>
-                            <td class="p-3 text-on-surface">${formatINR(txn.amount)}</td>
-                            <td class="p-3 text-on-surface-variant">${escapeHTML(failureName)}</td>
-                            <td class="p-3">
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full font-medium text-[11px] ${badgeClass}">${statusLabel}</span>
-                            </td>
-                            <td class="p-3 text-right text-on-surface-variant">${txn.attempts_count}</td>
-                        </tr>
-                    `;
-                    tbody.insertAdjacentHTML('beforeend', rowHtml);
+                const genRes = await fetch(`${API_BASE}/transactions/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ n: 60, scenario: 'baseline', seed: 42 }) 
                 });
-            } catch (error) {
-                console.error(error);
-                showToast(`Unable to load transactions: ${error.message}`);
+                
+                if (genRes.ok) {
+                    showToast('Sandbox transactions seeded successfully!', 'success');
+                    await refreshDemoStory();
+                } else {
+                    throw new Error('Failure seeding transactions');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast(`Unable to reset demo transactions: ${err.message}`);
+            } finally {
+                setLoading('btn-demo-step', false, 'RUN NEXT RECOVERY');
             }
         }
 
-        // Toggle Expandable Audit Trail
-        async function toggleAuditTrail(row, transactionId) {
-            const chevron = row.querySelector('.chevron-icon');
-            const nextRow = row.nextElementSibling;
-            
-            // Check if already open
-            if (nextRow && nextRow.classList.contains('audit-trail-row')) {
-                nextRow.remove();
-                chevron.classList.remove('rotate-90');
-                row.classList.remove('bg-surface-variant/30');
-                return;
-            }
-            
-            // Rotate chevron and highlight row
-            chevron.classList.add('rotate-90');
-            row.classList.add('bg-surface-variant/30');
-            
-            // Insert loading placeholder
-            const auditRowHtml = `
-                <tr class="audit-trail-row border-b border-outline-variant bg-[#1a2436]">
-                    <td class="p-0" colspan="6">
-                        <div class="p-6">
-                            <h4 class="font-headline-sm text-headline-sm text-on-surface mb-4">Audit Trail</h4>
-                            <div class="audit-trail-timeline relative pl-6 border-l-2 border-outline-variant space-y-6">
-                                <div class="text-on-surface-variant text-sm flex items-center gap-2">
-                                    <span class="animate-pulse w-2 h-2 rounded-full bg-primary"></span>
-                                    Loading audit trail details...
-                                </div>
-                            </div>
-                        </div>
-                    </td>
-                </tr>
-            `;
-            row.insertAdjacentHTML('afterend', auditRowHtml);
-            
-            const timelineContainer = row.nextElementSibling.querySelector('.audit-trail-timeline');
-            
+        async function runDemoTxnStep() {
+            setLoading('btn-demo-step', true, 'Evaluating recovery...');
             try {
-                const response = await fetch(`${API_BASE}/recovery/audit/${transactionId}`);
-                if (!response.ok) throw new Error('Failed to load audit trail');
-                const attempts = await response.json();
+                // Find ID of HDFC bank_server_down transaction
+                const txnsRes = await fetch(`${API_BASE}/transactions`);
+                if (!txnsRes.ok) throw new Error('Failed to query transactions list');
+                const transactions = await txnsRes.json();
                 
-                timelineContainer.innerHTML = '';
-                
-                if (attempts.length === 0) {
-                    timelineContainer.innerHTML = `
-                        <div class="text-on-surface-variant text-sm">
-                            No recovery attempts have been run for this transaction yet.
-                        </div>
-                    `;
+                const demoTxn = transactions.find(t => t.payment_id === 'demo_pay_ref_4500' || t.failure_code === 'bank_server_down');
+                if (!demoTxn) {
+                    showToast('Demo transaction not found. Re-seeding...');
+                    await resetDemoTxn();
                     return;
                 }
+
+                // Process transaction step
+                const response = await fetch(`${API_BASE}/recovery/run/${demoTxn.id}`, { method: 'POST' });
+                if (!response.ok) throw new Error('Failed to run demo transaction step');
+                const attempt = await response.json();
                 
-                attempts.forEach(attempt => {
-                    let dotColor = 'bg-warning';
-                    let badgeClass = 'bg-warning/15 text-warning';
-                    let outcomeText = 'Pending';
-                    
-                    if (attempt.outcome === 'recovered') {
-                        dotColor = 'bg-success';
-                        badgeClass = 'bg-success/15 text-success';
-                        outcomeText = 'Recovered';
-                    } else if (attempt.outcome === 'failed' || attempt.outcome === 'lost') {
-                        dotColor = 'bg-error';
-                        badgeClass = 'bg-error/15 text-error';
-                        outcomeText = attempt.outcome.charAt(0).toUpperCase() + attempt.outcome.slice(1);
-                    } else if (attempt.outcome === 'escalated') {
-                        dotColor = 'bg-[#adc6ff]';
-                        badgeClass = 'bg-[#adc6ff]/15 text-[#adc6ff]';
-                        outcomeText = 'Escalated';
-                    }
-
-                    const attemptTime = new Date(attempt.timestamp).toLocaleString('en-IN', {
-                        day: 'numeric',
-                        month: 'short',
-                        hour: 'numeric',
-                        minute: 'numeric',
-                        hour12: true
-                    });
-
-                    // Decode diagnosis source badge
-                    let sourceBadge = '';
-                    if (attempt.diagnosis_source === 'AI') {
-                        sourceBadge = '<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold bg-purple-600/20 text-purple-400 border border-purple-500/30 ml-2">AI</span>';
-                    } else if (attempt.diagnosis_source) {
-                        sourceBadge = `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold bg-orange-600/20 text-orange-400 border border-orange-500/30 ml-2">${escapeHTML(attempt.diagnosis_source)}</span>`;
-                    }
-
-                    // Render policy checks
-                    let rulesHtml = '';
-                    if (attempt.rules_evaluated) {
-                        try {
-                            const rules = JSON.parse(attempt.rules_evaluated);
-                            rulesHtml = rules.map(r => `
-                                <div class="flex items-center gap-1.5 text-[11px] ${r.passed ? 'text-success' : 'text-error'}">
-                                    <span>${r.passed ? '✓' : '✗'}</span>
-                                    <span class="font-medium">${escapeHTML(r.rule)}</span>
-                                    <span class="text-on-surface-variant font-normal">(${escapeHTML(r.detail)})</span>
-                                </div>
-                            `).join('');
-                        } catch (e) {
-                            rulesHtml = `<div class="text-[11px] text-on-surface-variant">${escapeHTML(attempt.rules_evaluated)}</div>`;
-                        }
-                    }
-
-                    // Predictor Status HTML
-                    let predictorHtml = '';
-                    if (attempt.predictor_status === 'fallback') {
-                        predictorHtml = `
-                            <div class="mt-2 p-2 bg-error-container/10 border border-error-container/30 rounded">
-                                <div class="font-label-sm text-label-sm text-error font-semibold uppercase">Predictor Status: Fallback</div>
-                                <div class="text-[11px] text-on-error-container mt-0.5">AI prediction unavailable — deterministic fallback used.</div>
-                            </div>
-                        `;
-                    } else if (attempt.predictor_status === 'success') {
-                        predictorHtml = `
-                            <div class="mt-2 p-2 bg-success/5 border border-success/20 rounded">
-                                <div class="font-label-sm text-label-sm text-success font-semibold uppercase">Predictor Status: Success</div>
-                            </div>
-                        `;
-                    }
-
-                    const attemptHtml = `
-                        <div class="relative">
-                            <div class="absolute -left-[31px] top-1 w-3 h-3 rounded-full ${dotColor} border-2 border-[#1a2436]"></div>
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="font-label-md text-label-md text-on-surface font-semibold">Attempt ${attempt.attempt_number}</span>
-                                <span class="text-on-surface-variant text-[10px]">${attemptTime}</span>
-                                <span class="ml-auto inline-flex items-center px-2 py-0.5 rounded-full ${badgeClass} text-[10px] font-medium">${outcomeText}</span>
-                            </div>
-                            
-                            <!-- Five Clean Structured Columns -->
-                            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mt-2 bg-surface-container/30 p-4 rounded border border-outline-variant/10">
-                                
-                                <!-- 1. DIAGNOSIS -->
-                                <div class="flex flex-col gap-1">
-                                    <div class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Diagnosis</div>
-                                    <div class="text-on-surface font-semibold text-body-sm flex flex-wrap items-center gap-1">
-                                        ${escapeHTML(FAILURE_NAMES[attempt.diagnosis] || attempt.diagnosis)}
-                                        ${sourceBadge}
-                                    </div>
-                                    <div class="text-[11px] text-on-surface-variant mt-1">
-                                        Confidence: ${attempt.confidence ? Math.round(attempt.confidence * 100) : 0}%
-                                    </div>
-                                    ${predictorHtml}
-                                </div>
-
-                                <!-- 2. AI RECOMMENDATION / WHY -->
-                                <div class="flex flex-col gap-1">
-                                    <div class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Recommendation</div>
-                                    <div class="text-on-surface font-medium text-body-sm">
-                                        ${attempt.ai_recommendation ? escapeHTML(attempt.ai_recommendation.replace(/_/g, ' ')) : 'N/A'}
-                                    </div>
-                                    <div class="text-[11px] text-on-surface-variant mt-1 leading-snug">
-                                        ${attempt.ai_reasoning ? escapeHTML(attempt.ai_reasoning) : 'No AI reasoning available.'}
-                                    </div>
-                                    <div class="text-[11px] text-primary mt-1">
-                                        Est. Probability: ${attempt.ai_predicted_probability ? Math.round(attempt.ai_predicted_probability * 100) : 0}%
-                                    </div>
-                                </div>
-
-                                <!-- 3. POLICY GATE -->
-                                <div class="flex flex-col gap-1">
-                                    <div class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Policy Gate</div>
-                                    <div class="text-body-sm font-semibold ${attempt.policy_decision === 'APPROVED' ? 'text-success' : 'text-error'}">
-                                        ${attempt.policy_decision || 'N/A'}
-                                    </div>
-                                    <div class="flex flex-col gap-1 mt-1">
-                                        ${rulesHtml}
-                                    </div>
-                                    ${attempt.policy_override_reason ? `
-                                        <div class="text-[10px] text-warning border-t border-outline-variant/10 mt-1 pt-1 leading-snug">
-                                            Override: ${escapeHTML(attempt.policy_override_reason)}
-                                        </div>
-                                    ` : ''}
-                                </div>
-
-                                <!-- 4. FINAL ACTION -->
-                                <div class="flex flex-col gap-1">
-                                    <div class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Final Action</div>
-                                    <div class="text-on-surface font-semibold text-body-sm">
-                                        ${escapeHTML(attempt.action_taken.replace(/_/g, ' '))}
-                                    </div>
-                                    <div class="text-[11px] text-on-surface-variant mt-1 leading-normal">
-                                        Fallback Status: <span class="font-medium text-on-surface">${escapeHTML(attempt.fallback_status || 'Inactive')}</span>
-                                    </div>
-                                </div>
-
-                                <!-- 5. OUTCOME -->
-                                <div class="flex flex-col gap-1">
-                                    <div class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Outcome</div>
-                                    <div class="text-on-surface font-semibold text-body-sm flex items-center gap-1.5">
-                                        <span class="w-2 h-2 rounded-full ${dotColor}"></span>
-                                        ${outcomeText}
-                                    </div>
-                                    <div class="text-[11px] text-on-surface-variant mt-1 space-y-0.5">
-                                        <div>Recovery Amount: <span class="text-on-surface font-medium">${formatINR(attempt.recovery_amount || 0)}</span></div>
-                                        <div>Action Cost: <span class="text-on-surface font-medium">${formatINR(attempt.cost || 0)}</span></div>
-                                        <div class="border-t border-outline-variant/10 pt-0.5 mt-0.5">
-                                            Net recovery: <span class="font-bold ${attempt.net_recovery >= 0 ? 'text-success' : 'text-error'}">${formatINR(attempt.net_recovery || 0)}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                            </div>
-                        </div>
-                    `;
-                    timelineContainer.insertAdjacentHTML('beforeend', attemptHtml);
-                });
-                
-            } catch (error) {
-                console.error(error);
-                timelineContainer.innerHTML = `
-                    <div class="text-error text-sm flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[16px]">error</span>
-                        Failed to load details: ${error.message}
-                    </div>
-                `;
+                showToast(`Attempt ${attempt.attempt_number} completed: ${attempt.outcome}`, 'success');
+                await refreshDemoStory();
+            } catch (err) {
+                console.error(err);
+                showToast(`Demo step failed: ${err.message}`);
+                await refreshDemoStory();
+            } finally {
+                setLoading('btn-demo-step', false, 'RUN NEXT RECOVERY');
             }
         }
 
-        // Actions: Generate Batch
         async function generateBatch() {
             const scenario = document.getElementById('select-scenario').value;
-            setLoading('btn-generate', true, 'Generating...');
+            showToast('Generating new batch of transactions...');
             try {
                 const response = await fetch(`${API_BASE}/transactions/generate`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ n: 60, scenario: scenario })
                 });
-                
                 if (!response.ok) throw new Error('Failed to generate batch');
-                
                 showToast('Successfully generated a new batch of 60 transactions!', 'success');
-                
-                // Refresh dashboard elements
-                await Promise.all([fetchSummary(), fetchTransactions()]);
-                
+                await refreshDemoStory();
             } catch (error) {
                 console.error(error);
                 showToast(`Failed to generate new batch: ${error.message}`);
-            } finally {
-                setLoading('btn-generate', false, 'Generate New Batch');
             }
         }
 
-        // Actions: Run Recovery Batch
         async function runRecoveryBatch() {
             const threshold = document.getElementById('slider-threshold').value;
-            setLoading('btn-run-recovery', true, 'Running Recovery...');
+            showToast('Running batch recovery...');
             try {
                 const response = await fetch(`${API_BASE}/recovery/run-batch?confidence_threshold=${threshold}`, {
                     method: 'POST'
                 });
-                
                 if (!response.ok) throw new Error('Failed to run recovery batch');
                 const results = await response.json();
-                
                 showToast(`Recovery run complete! Processed ${results.length} transactions.`, 'success');
-                
-                // Refresh dashboard elements
-                await Promise.all([fetchSummary(), fetchTransactions()]);
-                
+                await refreshDemoStory();
             } catch (error) {
                 console.error(error);
                 showToast(`Failed to run recovery batch: ${error.message}`);
-            } finally {
-                setLoading('btn-run-recovery', false, 'Run Recovery Batch');
             }
         }
 
-        // Actions: Run Until Resolved
         async function runUntilResolved() {
             const threshold = document.getElementById('slider-threshold').value;
-            setLoading('btn-run-until-resolved', true, 'Running...');
+            showToast('Running all until resolved...');
             try {
                 const response = await fetch(`${API_BASE}/recovery/run-until-resolved?confidence_threshold=${threshold}`, {
                     method: 'POST'
                 });
-                
                 if (!response.ok) throw new Error('Failed to run recovery loops');
                 const results = await response.json();
-                
                 showToast(`Recovery run until resolved complete! Processed ${results.length} attempts.`, 'success');
-                
-                // Refresh dashboard elements
-                await Promise.all([fetchSummary(), fetchTransactions()]);
-                
+                await refreshDemoStory();
             } catch (error) {
                 console.error(error);
                 showToast(`Failed to run recovery until resolved: ${error.message}`);
-            } finally {
-                setLoading('btn-run-until-resolved', false, 'Run Until Resolved');
             }
         }
 
-        // Export data to CSV
         async function exportToCSV() {
             try {
                 const response = await fetch(`${API_BASE}/transactions`);
@@ -1312,10 +962,7 @@
                     return;
                 }
                 
-                // Define CSV headers
                 const headers = ['Transaction ID', 'Customer ID', 'Amount', 'Failure Code', 'Status', 'Attempts Count', 'Promise To Pay', 'Promised Amount'];
-                
-                // Map data to CSV rows
                 const rows = transactions.map(t => [
                     `TRX-${t.id}`,
                     t.customer_id,
@@ -1327,7 +974,6 @@
                     t.promised_amount || 0
                 ]);
                 
-                // Combine headers and rows
                 const csvContent = [
                     headers.join(','),
                     ...rows.map(row => row.map(val => {
@@ -1339,7 +985,6 @@
                     }).join(','))
                 ].join('\n');
                 
-                // Create blob and download link
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
@@ -1357,385 +1002,14 @@
             }
         }
 
-        // Tab switching logic
-        function switchTab(tab) {
-            const tabDashboard = document.getElementById('tab-dashboard');
-            const tabB2b = document.getElementById('tab-b2b');
-            const secDashboard = document.getElementById('section-dashboard');
-            const secB2b = document.getElementById('section-b2b');
-            
-            if (tab === 'dashboard') {
-                tabDashboard.className = "text-primary border-b-2 border-primary pb-1 font-label-md text-label-md px-2 py-1";
-                tabB2b.className = "text-on-surface-variant hover:text-on-surface pb-1 font-label-md text-label-md px-2 py-1";
-                secDashboard.classList.remove('hidden');
-                secB2b.classList.add('hidden');
-                fetchSummary();
-                fetchTransactions();
-            } else {
-                tabB2b.className = "text-primary border-b-2 border-primary pb-1 font-label-md text-label-md px-2 py-1";
-                tabDashboard.className = "text-on-surface-variant hover:text-on-surface pb-1 font-label-md text-label-md px-2 py-1";
-                secDashboard.classList.add('hidden');
-                secB2b.classList.remove('hidden');
-                fetchB2BSummary();
-                fetchInvoices();
-            }
-        }
-
-        // B2B receivables metrics and table
-        async function fetchB2BSummary() {
-            try {
-                const response = await fetch(`${API_BASE}/invoices/stats`);
-                if (!response.ok) throw new Error('Failed to fetch B2B stats');
-                const data = await response.json();
-                
-                document.getElementById('b2b-total-overdue').innerText = formatINR(data.total_overdue);
-                document.getElementById('b2b-avg-days').innerText = `${data.avg_days_to_collection.toFixed(1)} days`;
-                document.getElementById('b2b-escalated-count').innerText = data.status_counts.escalated;
-                document.getElementById('b2b-written-off-count').innerText = data.status_counts.written_off;
-            } catch (err) {
-                console.error(err);
-                showToast(`Unable to load B2B summary: ${err.message}`);
-            }
-        }
-
-        async function fetchInvoices() {
-            try {
-                const response = await fetch(`${API_BASE}/invoices`);
-                if (!response.ok) throw new Error('Failed to fetch invoices');
-                const invoices = await response.json();
-                
-                const tbody = document.getElementById('invoices-tbody');
-                tbody.innerHTML = '';
-                
-                if (invoices.length === 0) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="7" class="p-8 text-center text-on-surface-variant">No invoices found. Click "Generate Invoices Batch" to begin.</td>
-                        </tr>
-                    `;
-                    return;
-                }
-                
-                invoices.forEach(inv => {
-                    let badgeClass = 'bg-surface-variant text-on-surface-variant';
-                    let statusLabel = 'Open';
-                    if (inv.status === 'paid') {
-                        badgeClass = 'bg-success/15 text-success';
-                        statusLabel = 'Paid';
-                    } else if (inv.status === 'escalated') {
-                        badgeClass = 'bg-[#adc6ff]/20 text-[#adc6ff] border border-[#adc6ff]/30';
-                        statusLabel = 'Escalated';
-                    } else if (inv.status === 'written_off') {
-                        badgeClass = 'bg-error/15 text-error';
-                        statusLabel = 'Written Off';
-                    }
-                    
-                    const dueTime = new Date(inv.due_date).toLocaleDateString('en-IN', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric'
-                    });
-
-                    let stage = 'Friendly Reminder';
-                    if (inv.days_overdue > 60) stage = 'Legal Review';
-                    else if (inv.days_overdue > 30) stage = 'Human Escalation';
-                    else if (inv.days_overdue > 15) stage = 'Formal Notice';
-
-                    const rowHtml = `
-                        <tr class="border-b border-outline-variant hover:bg-[#334155]/50 transition-colors cursor-pointer group" onclick="toggleInvoiceAudit(this, ${inv.id})">
-                            <td class="p-3 flex items-center gap-2 text-primary">
-                                <span class="chevron-icon material-symbols-outlined text-[16px] transition-transform duration-200">chevron_right</span>
-                                INV-${inv.id}
-                            </td>
-                            <td class="p-3 text-on-surface">${escapeHTML(inv.business_name)}</td>
-                            <td class="p-3 text-on-surface">${formatINR(inv.amount)}</td>
-                            <td class="p-3 text-on-surface-variant">${dueTime}</td>
-                            <td class="p-3 text-on-surface-variant">${inv.days_overdue} days</td>
-                            <td class="p-3">
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full font-medium text-[11px] ${badgeClass}">${statusLabel}</span>
-                            </td>
-                            <td class="p-3 text-right text-on-surface-variant font-medium">${stage}</td>
-                        </tr>
-                    `;
-                    tbody.insertAdjacentHTML('beforeend', rowHtml);
-                });
-            } catch (error) {
-                console.error(error);
-                showToast(`Unable to load invoices: ${error.message}`);
-            }
-        }
-
-        async function toggleInvoiceAudit(row, invoiceId) {
-            const chevron = row.querySelector('.chevron-icon');
-            const nextRow = row.nextElementSibling;
-            
-            if (nextRow && nextRow.classList.contains('audit-trail-row')) {
-                nextRow.remove();
-                chevron.classList.remove('rotate-90');
-                row.classList.remove('bg-surface-variant/30');
-                return;
-            }
-            
-            chevron.classList.add('rotate-90');
-            row.classList.add('bg-surface-variant/30');
-            
-            const auditRowHtml = `
-                <tr class="audit-trail-row border-b border-outline-variant bg-[#1a2436]">
-                    <td class="p-0" colspan="7">
-                        <div class="p-6">
-                            <h4 class="font-headline-sm text-headline-sm text-on-surface mb-4">Invoice Audit Trail</h4>
-                            <div class="audit-trail-timeline relative pl-6 border-l-2 border-outline-variant space-y-6">
-                                <div class="text-on-surface-variant text-sm flex items-center gap-2">
-                                    <span class="animate-pulse w-2 h-2 rounded-full bg-primary"></span>
-                                    Loading audit trail details...
-                                </div>
-                            </div>
-                        </div>
-                    </td>
-                </tr>
-            `;
-            row.insertAdjacentHTML('afterend', auditRowHtml);
-            
-            const timelineContainer = row.nextElementSibling.querySelector('.audit-trail-timeline');
-            
-            try {
-                const response = await fetch(`${API_BASE}/invoices/audit/${invoiceId}`);
-                if (!response.ok) throw new Error('Failed to load invoice audit trail');
-                const attempts = await response.json();
-                
-                timelineContainer.innerHTML = '';
-                
-                if (attempts.length === 0) {
-                    timelineContainer.innerHTML = `
-                        <div class="text-on-surface-variant text-sm">
-                            No collection attempts have been run for this invoice yet.
-                        </div>
-                    `;
-                    return;
-                }
-                
-                attempts.forEach(attempt => {
-                    let dotColor = 'bg-warning';
-                    let badgeClass = 'bg-warning/15 text-warning';
-                    let outcomeText = 'Pending';
-                    
-                    if (attempt.outcome === 'recovered') {
-                        dotColor = 'bg-success';
-                        badgeClass = 'bg-success/15 text-success';
-                        outcomeText = 'Paid';
-                    } else if (attempt.outcome === 'failed' || attempt.outcome === 'lost') {
-                        dotColor = 'bg-error';
-                        badgeClass = 'bg-error/15 text-error';
-                        outcomeText = attempt.outcome === 'failed' ? 'Failed' : 'Written Off';
-                    } else if (attempt.outcome === 'escalated') {
-                        dotColor = 'bg-[#adc6ff]';
-                        badgeClass = 'bg-[#adc6ff]/15 text-[#adc6ff]';
-                        outcomeText = 'Escalated';
-                    }
-
-                    const attemptTime = new Date(attempt.timestamp).toLocaleString('en-IN', {
-                        day: 'numeric',
-                        month: 'short',
-                        hour: 'numeric',
-                        minute: 'numeric',
-                        hour12: true
-                    });
-
-                    const attemptHtml = `
-                        <div class="relative">
-                            <div class="absolute -left-[31px] top-1 w-3 h-3 rounded-full ${dotColor} border-2 border-[#1a2436]"></div>
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="font-label-md text-label-md text-on-surface font-semibold">Attempt ${attempt.attempt_number}</span>
-                                <span class="text-on-surface-variant text-[10px]">${attemptTime}</span>
-                                <span class="ml-auto inline-flex items-center px-2 py-0.5 rounded-full ${badgeClass} text-[10px] font-medium">${outcomeText}</span>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2 bg-surface-container/30 p-3 rounded border border-outline-variant/10">
-                                <div>
-                                    <div class="font-label-sm text-label-sm text-on-surface-variant mb-1">Overdue diagnosis</div>
-                                    <div class="text-on-surface font-body-sm text-body-sm">${escapeHTML(attempt.diagnosis.replace(/_/g, ' '))}</div>
-                                </div>
-                                <div>
-                                    <div class="font-label-sm text-label-sm text-on-surface-variant mb-1">Action</div>
-                                    <div class="text-on-surface font-body-sm text-body-sm">${escapeHTML(attempt.action_taken.replace(/_/g, ' '))}</div>
-                                </div>
-                                <div>
-                                    <div class="font-label-sm text-label-sm text-on-surface-variant mb-1">Reasoning</div>
-                                    <div class="text-on-surface font-body-sm text-body-sm">${escapeHTML(attempt.reasoning)}</div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    timelineContainer.insertAdjacentHTML('beforeend', attemptHtml);
-                });
-                
-            } catch (error) {
-                console.error(error);
-                timelineContainer.innerHTML = `
-                    <div class="text-error text-sm flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[16px]">error</span>
-                        Failed to load details: ${error.message}
-                    </div>
-                `;
-            }
-        }
-
-        async function generateInvoices() {
-            setLoading('btn-generate-invoices', true, 'Generating...');
-            try {
-                const response = await fetch(`${API_BASE}/invoices/generate`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ n: 20 })
-                });
-                if (!response.ok) throw new Error('Failed to generate invoices');
-                showToast('Successfully generated a new batch of 20 B2B invoices!', 'success');
-                await Promise.all([fetchB2BSummary(), fetchInvoices()]);
-            } catch (err) {
-                showToast(`Failed to generate: ${err.message}`);
-            } finally {
-                setLoading('btn-generate-invoices', false, 'Generate Invoices Batch');
-            }
-        }
-
-        async function runInvoiceBatch() {
-            setLoading('btn-run-invoice-batch', true, 'Running...');
-            try {
-                const response = await fetch(`${API_BASE}/invoices/run-batch`, { method: 'POST' });
-                if (!response.ok) throw new Error('Failed to run batch');
-                const results = await response.json();
-                showToast(`Invoice escalation pass complete! Run ${results.length} actions.`, 'success');
-                await Promise.all([fetchB2BSummary(), fetchInvoices()]);
-            } catch (err) {
-                showToast(`Failed to run escalation: ${err.message}`);
-            } finally {
-                setLoading('btn-run-invoice-batch', false, 'Run Invoice Escalation');
-            }
-        }
-
-        async function runInvoicesUntilResolved() {
-            setLoading('btn-run-invoices-resolved', true, 'Running...');
-            try {
-                const response = await fetch(`${API_BASE}/invoices/run-until-resolved`, { method: 'POST' });
-                if (!response.ok) throw new Error('Failed to run until resolved');
-                const results = await response.json();
-                showToast(`Escalated invoices until resolved! Created ${results.length} attempts.`, 'success');
-                await Promise.all([fetchB2BSummary(), fetchInvoices()]);
-            } catch (err) {
-                showToast(`Failed to resolve: ${err.message}`);
-            } finally {
-                setLoading('btn-run-invoices-resolved', false, 'Run Until Resolved');
-            }
-        }
-
-        // Live config settings operations
-        let currentMode = 'llm';
-        
-        async function resetDemoTxn() {
-            setLoading('btn-demo-step', false, 'Step Decision Pipeline');
-            try {
-                // Clear UI highlight step opacity styles
-                document.getElementById('demo-step-2').className = 'bg-surface-container/40 rounded-lg p-4 border border-outline-variant/30 flex flex-col justify-between opacity-50';
-                document.getElementById('demo-step-3').className = 'bg-surface-container/40 rounded-lg p-4 border border-outline-variant/30 flex flex-col justify-between opacity-50';
-                document.getElementById('demo-step-4').className = 'bg-surface-container/40 rounded-lg p-4 border border-outline-variant/30 flex flex-col justify-between opacity-50';
-                document.getElementById('demo-step-5').className = 'bg-surface-container/40 rounded-lg p-4 border border-outline-variant/30 flex flex-col justify-between opacity-50';
-                
-                document.getElementById('demo-diag-text').innerText = '-';
-                document.getElementById('demo-diag-conf').innerText = 'Confidence: -';
-                document.getElementById('demo-rec-text').innerText = '-';
-                document.getElementById('demo-rec-ev').innerText = 'Expected Net: -';
-                document.getElementById('demo-policy-text').innerText = '-';
-                document.getElementById('demo-policy-reason').innerText = 'Override: -';
-                document.getElementById('demo-outcome-text').innerText = '-';
-                document.getElementById('demo-outcome-net').innerText = 'Net Recovered: -';
-                document.getElementById('demo-status-history').innerText = 'History: No attempts';
-                
-                // Re-trigger generation batch request to reconstruct clean sandbox state
-                const genRes = await fetch(`${API_BASE}/transactions/generate`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ n: 60, scenario: 'baseline', seed: 42 }) 
-                });
-                
-                if (genRes.ok) {
-                    showToast('Sandbox transactions seeded successfully!', 'success');
-                    await Promise.all([fetchSummary(), fetchTransactions()]);
-                }
-            } catch (err) {
-                console.error(err);
-                showToast(`Unable to reset demo transactions: ${err.message}`);
-            }
-        }
-
-        async function runDemoTxnStep() {
-            setLoading('btn-demo-step', true, 'Processing Step...');
-            try {
-                // Find ID of HDFC bank_server_down transaction
-                const txnsRes = await fetch(`${API_BASE}/transactions`);
-                if (!txnsRes.ok) throw new Error('Failed to query transactions list');
-                const transactions = await txnsRes.json();
-                
-                // Search for our target demo txn
-                const demoTxn = transactions.find(t => t.payment_id === 'demo_pay_ref_4500' || t.failure_code === 'bank_server_down');
-                if (!demoTxn) {
-                    showToast('Demo transaction 101 not found. Please click Reset Transaction to seed it.');
-                    setLoading('btn-demo-step', false, 'Step Decision Pipeline');
-                    return;
-                }
-
-                // Process transaction step
-                const response = await fetch(`${API_BASE}/recovery/run/${demoTxn.id}`, { method: 'POST' });
-                if (!response.ok) throw new Error('Failed to run demo transaction step');
-                const attempt = await response.json();
-                
-                // Fetch updated transaction details
-                const detailRes = await fetch(`${API_BASE}/transactions`);
-                const allTxns = await detailRes.json();
-                const updatedTxn = allTxns.find(t => t.id === demoTxn.id);
-                
-                // Display layout mapping
-                document.getElementById('demo-step-2').className = 'bg-surface-container rounded-lg p-4 border border-indigo-500/50 flex flex-col justify-between shadow-md shadow-indigo-500/10';
-                document.getElementById('demo-diag-text').innerText = attempt.diagnosis.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                document.getElementById('demo-diag-conf').innerText = `Confidence: ${(attempt.confidence * 100).toFixed(0)}%`;
-                
-                document.getElementById('demo-step-3').className = 'bg-surface-container rounded-lg p-4 border border-indigo-500/50 flex flex-col justify-between shadow-md shadow-indigo-500/10';
-                document.getElementById('demo-rec-text').innerText = attempt.ai_recommendation.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                document.getElementById('demo-rec-ev').innerText = `Expected Net: ${formatINR(attempt.expected_recovery_value || 0)}`;
-                
-                document.getElementById('demo-step-4').className = 'bg-surface-container rounded-lg p-4 border border-indigo-500/50 flex flex-col justify-between shadow-md shadow-indigo-500/10';
-                document.getElementById('demo-policy-text').innerText = attempt.policy_decision;
-                document.getElementById('demo-policy-reason').innerText = attempt.policy_block_reason ? `Reason: ${attempt.policy_block_reason}` : 'No overrides';
-                
-                document.getElementById('demo-step-5').className = 'bg-surface-container rounded-lg p-4 border border-indigo-500/50 flex flex-col justify-between shadow-md shadow-indigo-500/10';
-                document.getElementById('demo-outcome-text').innerText = attempt.outcome.replace(/\b\w/g, c => c.toUpperCase());
-                document.getElementById('demo-outcome-net').innerText = `Net Recovered: ${formatINR(attempt.net_recovery || 0)}`;
-                
-                document.getElementById('demo-status-history').innerText = `History: ${updatedTxn.attempts_count} attempts (${updatedTxn.status})`;
-                
-                if (updatedTxn.status === 'recovered') {
-                    showToast('Transaction fully recovered using rotated stateful pipeline!', 'success');
-                    setLoading('btn-demo-step', true, 'Recovered ✓');
-                } else {
-                    showToast(`Attempt ${updatedTxn.attempts_count} completed. Next decision ready.`, 'success');
-                    setLoading('btn-demo-step', false, 'Step Next Decision');
-                }
-                
-                await Promise.all([fetchSummary(), fetchTransactions()]);
-                
-            } catch (err) {
-                console.error(err);
-                showToast(`Demo step failed: ${err.message}`);
-                setLoading('btn-demo-step', false, 'Step Decision Pipeline');
-            }
-        }
         async function fetchSettings() {
             try {
                 const response = await fetch(`${API_BASE}/recovery/settings`);
                 if (response.ok) {
                     const data = await response.json();
-                    currentMode = data.DIAGNOSIS_MODE;
                     document.getElementById('slider-threshold').value = data.CONFIDENCE_THRESHOLD;
                     document.getElementById('threshold-val').innerText = parseFloat(data.CONFIDENCE_THRESHOLD).toFixed(2);
-                    updateModeUI(currentMode);
+                    updateModeUI(data.DIAGNOSIS_MODE);
                 }
             } catch (err) {
                 console.error('Error fetching settings:', err);
@@ -1746,10 +1020,10 @@
             const btnLlm = document.getElementById('btn-mode-llm');
             const btnDet = document.getElementById('btn-mode-det');
             if (mode === 'llm') {
-                btnLlm.className = "flex-1 py-1 px-2 rounded font-label-sm text-label-sm text-center bg-[#3B82F6] text-white border border-[#3B82F6]";
+                btnLlm.className = "flex-1 py-1 px-2 rounded font-label-sm text-label-sm text-center bg-primary text-background font-bold border border-primary";
                 btnDet.className = "flex-1 py-1 px-2 rounded font-label-sm text-label-sm text-center bg-surface-container-high border border-outline-variant text-on-surface-variant hover:bg-surface-variant";
             } else {
-                btnDet.className = "flex-1 py-1 px-2 rounded font-label-sm text-label-sm text-center bg-[#3B82F6] text-white border border-[#3B82F6]";
+                btnDet.className = "flex-1 py-1 px-2 rounded font-label-sm text-label-sm text-center bg-primary text-background font-bold border border-primary";
                 btnLlm.className = "flex-1 py-1 px-2 rounded font-label-sm text-label-sm text-center bg-surface-container-high border border-outline-variant text-on-surface-variant hover:bg-surface-variant";
             }
         }
@@ -1762,23 +1036,19 @@
                     body: JSON.stringify({ DIAGNOSIS_MODE: mode })
                 });
                 if (response.ok) {
-                    currentMode = mode;
                     updateModeUI(mode);
                     showToast(`Switched diagnosis mode to ${mode === 'llm' ? 'AI (LLM)' : 'Deterministic Rules'}!`, 'success');
-                    await fetchSummary();
+                    await refreshDemoStory();
                 }
             } catch (err) {
                 showToast(`Failed to update mode: ${err.message}`);
             }
         }
 
-        // Initial Load
         window.addEventListener('DOMContentLoaded', () => {
             fetchSettings();
-            fetchSummary();
-            fetchTransactions();
+            refreshDemoStory();
 
-            // Set up settings slider change listener
             document.getElementById('slider-threshold').addEventListener('change', async (e) => {
                 const val = e.target.value;
                 try {
@@ -1789,7 +1059,7 @@
                     });
                     if (response.ok) {
                         showToast(`Confidence threshold set to ${parseFloat(val).toFixed(2)}`, 'success');
-                        await fetchSummary();
+                        await refreshDemoStory();
                     }
                 } catch (err) {
                     showToast(`Failed to set threshold: ${err.message}`);

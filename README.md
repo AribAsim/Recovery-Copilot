@@ -1,6 +1,8 @@
 # Recovery Copilot
 ### Bounded, auditable revenue-recovery agent for failed payments and abandoned checkouts.
 
+> **Razorpay Hackathon 2026** — AI-powered payment recovery with guaranteed financial rails.
+
 ---
 
 ## Problem Statement
@@ -22,274 +24,210 @@ Recovery Copilot processes payments through a strict five-stage pipeline (**Diag
 
 ```mermaid
 flowchart TD
-    A[Failed Transaction / Abandoned Checkout] --> B[classifier.py: Diagnose]
-    B --> C{Confidence Gate}
-    
-    C -- "Confidence < Threshold" --> D[decision_router.py: Escalate to Human]
-    C -- "Confidence >= Threshold" --> E[decision_router.py: Rule-Based Action]
-    
-    E --> F{Action Selected}
-    F -- "retry_immediate / retry_in_24h" --> G[engine.py: Execute Retry]
-    F -- "send_nudge / request_new_method" --> H[llm_client.py: Draft Recovery Msg]
-    F -- "escalate_human" --> D
-    
-    H --> I[engine.py: Execute Nudge]
-    
-    G & I & D --> J[engine.py: Self-Check / Stopping Rule Guard]
-    J --> K[database.py: Persist RecoveryAttempt & Transaction Status]
-    K --> L[dashboard.py: Compile Live Metrics]
+    A["🔴 Failed Payment\n(₹4,500 · bank_server_down)"]
+
+    A --> B["📋 LLM Classifier\nllm_classifier.py"]
+    B --> B1{"API Available?"}
+    B1 -- "Yes → OpenRouter / Groq / NVIDIA" --> B2["AI Diagnosis\n(diagnosis_source = AI)"]
+    B1 -- "No / Error → All providers fail" --> B3["Deterministic Fallback\nclassifier.py\n(diagnosis_source = DETERMINISTIC FALLBACK)"]
+    B2 & B3 --> C["Confidence Score\n(e.g. 0.85)"]
+
+    C --> D{"Confidence ≥ Threshold?\n(default: 0.70)"}
+    D -- "Below threshold\nor 'unknown'" --> E["escalate_human"]
+    D -- "Passes gate" --> F["🧱 Policy Gate\npolicy_engine.py\nDeterministic Rule Lookup"]
+
+    F --> G{"Policy Decision"}
+    G -- "APPROVED" --> H["⚙️ Action Executor\naction_executor.py"]
+    G -- "BLOCKED\n(self-check / stopping rule)" --> E
+
+    H -- "retry_payment\nretry_after_delay" --> I["Execute Retry"]
+    H -- "send_recovery_message\nrequest_new_payment_method" --> J["LLM drafts customer message\nllm_client.py\n(template fallback if LLM down)"]
+    H -- "escalate_human" --> E
+
+    I & J --> K["📊 Recovery Context Updated\nstateful_predictor.py\nPrevious outcome becomes input\nto next decision"]
+
+    K --> L{"Terminal State?"}
+    L -- "recovered / lost / escalated" --> M["✅ Persist to DB\nFull Audit Trail"]
+    L -- "still pending" --> N["Attempt N+1\n(up to MAX_RETRY_ATTEMPTS)"]
+    N --> B
+
+    M --> O["📈 Dashboard\nNet Recovery · Policy Proof · Benchmark"]
 ```
+
+### Three-Provider LLM Fallback Chain
+
+```mermaid
+flowchart LR
+    A["Raw Failure Text\ne.g. 'Bank server timed out'"] --> B["Try OpenRouter\nmeta-llama/llama-3.1-8b-instruct:free"]
+    B -- "Success" --> Z["AI Diagnosis ✓"]
+    B -- "HTTPError / Timeout" --> C["Try Groq\nllama-3.3-70b-versatile"]
+    C -- "Success" --> Z
+    C -- "HTTPError / Timeout" --> D["Try NVIDIA NIM\nmeta/llama-3.1-8b-instruct"]
+    D -- "Success" --> Z
+    D -- "All fail" --> E["Deterministic Fallback\nclassifier.py\n(rule-based, always works)"]
+    E --> Z
+```
+
+> The system **never breaks** regardless of API availability. The deterministic fallback is the final guarantee.
 
 ---
 
 ## Key Design Decisions
 
-- **Deterministic Diagnosis & Routing (No LLM in Hot Path)**: Payment gateway failure codes are already structured data (e.g., `insufficient_funds`, `expired_card`). Using an LLM to interpret these is unnecessary, expensive, and adds latency. Thus, diagnosis and action-selection are completely deterministic, making the financial decision path auditable.
-- **LLM Scoped to Copywriting Only**: LLM usage (via OpenRouter) is isolated to a single, low-risk task: writing the customer-facing recovery message. The LLM has zero authority to decide financial actions or routing.
-- **Confidence Gating**: Each diagnosis returns a confidence score (defined in [classifier.py](file:///d:/Al%20websites/recovery-bot/recovery-bot/app/services/classifier.py)). If the confidence is below the threshold (default: `0.70`), the transaction is routed to `escalate_human`. Unseen/unknown errors get a default confidence of `0.40`, automatically forcing human review.
-- **Strict Stopping Rule**: To prevent spamming customers, the engine enforces a hard attempt cap (`MAX_RETRY_ATTEMPTS`, default: `3`) per transaction. Once triggered, the engine logs a `stopping_rule_triggered` attempt with action `give_up`.
-- **Anti-Repetition Self-Check**: The engine keeps track of previous attempts. If an action is selected that has already failed for that specific transaction (e.g., a nudge was sent but the customer did not pay), the engine overrides the action to `escalate_human` to prevent repetitive messaging.
-- **Regulatory Compliance Framing**: As annotated in [decision_router.py](file:///d:/Al%20websites/recovery-bot/recovery-bot/app/services/decision_router.py):
-  > The retry rules routing table, strict MAX_RETRY_ATTEMPTS bounds, and the escalation gates implemented herein are designed in accordance with RBI's e-mandate retry-limit guidelines and TRAI DND regulations for non-intrusive, compliant automated customer financial messaging.
+- **LLM is advisory, never authoritative**: The LLM classifies the failure. The **Policy Gate** (`policy_engine.py`) makes the final financial decision using deterministic rules the LLM cannot override.
+- **Three-provider AI cascade**: OpenRouter → Groq → NVIDIA NIM. If all fail, deterministic rules take over. Every step is logged.
+- **Stateful Recovery Context**: Each failed attempt is recorded into `stateful_predictor.py`. The next attempt receives the full context — this is what separates Recovery Copilot from a simple retry loop.
+- **Diagnosis Source transparency**: The UI explicitly labels each diagnosis as `AI` (purple) or `DETERMINISTIC FALLBACK` (amber), so evaluators can see exactly what drove the decision.
+- **Confidence Gating**: Confidence below 0.70 → forced `escalate_human`. Unknown error codes default to 0.40, ensuring they always route to human review.
+- **Strict Stopping Rule**: Hard cap of `MAX_RETRY_ATTEMPTS` (default: 3) per transaction. Prevents customer spam.
+- **Anti-Repetition Self-Check**: If an action was already tried and failed, the Policy Gate blocks it and forces escalation.
+- **RBI/TRAI Compliance Framing**: Retry limits and messaging gates are designed in accordance with RBI e-mandate retry guidelines and TRAI DND regulations.
 
 ---
 
-## Features
+## UI: Story-Driven Recovery Pipeline
 
-- **Live Dashboard**: A fully responsive dark-mode SPA displaying real-time financial performance:
-  - **Net Amount Recovered**: Tracks gross amount recovered minus the operational cost of recovery actions.
-  - **Overall Recovery Rate**: Displays the percentage of recovered transactions with a dynamic SVG progress ring.
-  - **Amount Still At Risk**: Live aggregation of value stuck in failed, pending, or lost states.
-  - **Escalated to Human**: A live count of transactions requiring human review, equipped with informative compliance tooltips.
-  - **Promises to Pay**: Live tracking of intent captured from customer SMS nudges.
-- **Recovery Rate by Failure Type**: Horizontal bar charts displaying recovery rates broken down by specific gateway codes.
-- **Actions Taken Breakdown**: An interactive conic-gradient donut chart showing action distribution (`retry`, `nudge`, `new method`, `escalate`).
-- **Interactive Onboarding Tour**: A step-by-step interactive walkthrough of the SPA's core features (Data Generation, Recovery Loops, Key Metrics, Failure Analytics, and AI Audit Trail).
-- **Scenario Switcher**: A drop-down to generate synthetic batches representing distinct distribution shifts:
-  - `Baseline Mix`: Normal distribution of payment failures.
-  - `Card Heavy Mix`: High frequency of card-level issues (e.g., expired card, invalid CVV).
-  - `Infra Heavy Mix`: High frequency of infrastructure errors (e.g., network timeout, bank down).
-  - `Ambiguous Heavy Mix`: High frequency of generic declines (which triggers more human escalations).
-- **Run-Until-Resolved Loop**: Simulates running the recovery cycle continuously until every transaction reaches a terminal state (`recovered`, `lost`, or `escalated`).
-- **Explainable Audit Trail**: Clicking any transaction row expands a detailed historical timeline of attempts, displaying the exact timestamp, diagnosis, action taken, and reasoning.
-- **CSV Data Exporter**: An option in the settings dropdown to download the current transaction list as a CSV file with automatic HTML and character escaping.
-- **Security & XSS Protection**: The frontend sanitizes all dynamic inputs (customer IDs, failure codes, and LLM text) using a robust HTML escaping mechanism to prevent Cross-Site Scripting (XSS).
+The frontend (`index.html`) is a single-page "Recovery Story" — not a metrics dashboard. It tells the story of one payment failure resolved through the pipeline:
+
+| Section | What it shows |
+|---|---|
+| **Failed Payment** | The transaction that triggered recovery (₹4,500 · `bank_server_down`) |
+| **AI Diagnosis** | Classification result, confidence score, and source (AI or DETERMINISTIC FALLBACK) |
+| **Policy Gate** | APPROVED / BLOCKED badge + the exact rules that fired |
+| **Execution** | Which action was taken and what the LLM-generated message looked like |
+| **Next Best Action** | What the stateful predictor recommends next (from recovery context) |
+| **Attempt Timeline** | Chronological attempt history with `RECOVERY CONTEXT UPDATED` markers between attempts |
+| **Technical Audit** | Expandable JSON-level detail for every field of every attempt |
+| **Benchmark** | Recovery rates across 4 synthetic distribution scenarios (anti-cherry-picking proof) |
+
+---
+
+## Changelog
+
+### v0.4 — Demo Integrity & Frontend Overhaul (2026-08-26)
+- **Fixed critical demo inconsistency**: Removed `|| t.failure_code === 'bank_server_down'` fallback in transaction lookup that caused the UI to display a random ₹7,466 transaction instead of the canonical ₹4,500 demo transaction.
+- **Canonical demo transaction**: Now always identified by exact `payment_id === 'demo_pay_ref_4500'` match. If not found, UI shows seed instruction rather than silently loading wrong data.
+- **RESET DEMO no longer calls `/transactions/generate`**: That endpoint appended 60 random rows on every click, which polluted the DB and shadowed the canonical demo transaction. Reset now just refreshes demo story state.
+- **Diagnosis Source labels**: Badge now explicitly shows `AI` (purple) or `DETERMINISTIC FALLBACK` (amber) — never the internal string `"Deterministic Rules"`.
+- **Diagnosis card expanded**: Added `Source` as a separate labeled field alongside `Diagnosis` and `Confidence` in a 3-column grid.
+- **Recovery-in-progress copy fixed**: Replaced "Waiting for next execution step or human escalation path" with clear "Attempt N complete. Outcome recorded as context for next decision."
+- **LLM model names fixed**: `OPENROUTER_MODEL` corrected from invalid `openrouter/free` to `meta-llama/llama-3.1-8b-instruct:free`; `GROQ_MODEL` updated from deprecated `llama-3.1-8b-instant` to `llama-3.3-70b-versatile`.
+- **Per-provider timeout**: Reduced from 10s → 6s so the 3-provider cascade completes faster.
+- **Error logging improvement**: LLM classifier now logs HTTP status code alongside exception type for faster debugging.
+
+### v0.3 — Stateful Predictor & Audit Trail (2026-08-25)
+- Added `stateful_predictor.py` — recovery context carries forward between attempts.
+- Added `diagnosis_source` field to `RecoveryAttempt` model and audit trail schema.
+- Multi-provider LLM fallback chain (OpenRouter → Groq → NVIDIA NIM → deterministic).
+- Added `action_executor.py`, `policy_engine.py`, `recovery_context.py`, `recovery_value.py` services.
+- Added full audit trail API: `GET /recovery/audit/{transaction_id}`.
+- Added `GET /recovery/outcome-dataset` CSV export endpoint.
+
+### v0.2 — Frontend Redesign (2026-08-25)
+- Rewrote `index.html` from a metrics dashboard into a story-driven recovery pipeline UI.
+- Added `Operations` dropdown to hide batch controls, scenario switcher, and CSV export during presentations.
+- Added interactive attempt timeline with `RECOVERY CONTEXT UPDATED` transition markers.
+- Added expandable Technical Audit drawer.
+- Added Benchmark section with multi-scenario recovery rate comparison.
+
+### v0.1 — Core Engine (2026-08-24)
+- Initial FastAPI backend with `engine.py`, `classifier.py`, `decision_router.py`, `llm_client.py`.
+- SQLite persistence with `Transaction` and `RecoveryAttempt` models.
+- Synthetic data generator with 4 scenario mixes.
+- Replay harness for anti-cherry-picking proof.
+- Seed script for canonical demo transaction.
+
+---
+
+## Demo Setup
+
+> Run this once before any demo or recording:
+
+```bash
+python scripts/seed_demo.py
+```
+
+This creates a fresh `demo_pay_ref_4500` transaction (₹4,500 · `bank_server_down`) with zero prior attempts. The UI will then tell the complete recovery story from scratch when you click **RUN NEXT RECOVERY**.
+
+To fully reset between demo runs (clear all prior attempts):
+```bash
+python scripts/seed_demo.py  # idempotent — deletes and re-creates the demo transaction
+uvicorn app.main:app --reload
+```
 
 ---
 
 ## API Reference
 
-All requests and responses use JSON format. Pydantic schemas enforce type safety.
+### Transactions (`/transactions`)
 
-### 1. Transactions Router (`/transactions`)
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/transactions/generate` | Generate synthetic failed transactions |
+| `GET` | `/transactions` | List all transactions |
 
-#### `POST /transactions/generate`
-Generates a new synthetic batch of failed transactions.
-- **Request Body**:
-  ```json
-  {
-    "n": 60, // integer, default: 60, min: 1, max: 500
-    "seed": null, // optional integer for deterministic generation
-    "scenario": "baseline" // optional string ("baseline", "card_heavy", "infra_heavy", "ambiguous_heavy")
-  }
-  ```
-- **Response Shape** (`list[TransactionOut]`):
-  ```json
-  [
-    {
-      "id": 1,
-      "customer_id": "8f2d5a1b",
-      "amount": 2540.50,
-      "failure_code": "insufficient_funds",
-      "status": "failed",
-      "attempts_count": 0,
-      "created_at": "2026-08-24T01:10:08",
-      "promise_to_pay": false,
-      "promised_amount": 0.0
-    }
-  ]
-  ```
+### Recovery (`/recovery`)
 
-#### `GET /transactions`
-Lists all transactions currently stored in the SQLite database.
-- **Response Shape**: `list[TransactionOut]` (same schema as above).
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/recovery/run/{id}` | Run one recovery step on a transaction |
+| `POST` | `/recovery/run-batch` | Run one pass over all open transactions |
+| `POST` | `/recovery/run-until-resolved` | Loop until all transactions reach terminal state |
+| `GET` | `/recovery/audit/{id}` | Full audit trail for one transaction |
+| `GET` | `/recovery/outcome-dataset` | Export outcomes as CSV |
+| `GET` | `/recovery/settings` | Get current diagnosis mode and threshold |
+| `POST` | `/recovery/settings` | Update diagnosis mode and threshold |
+
+### Dashboard (`/dashboard`)
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/dashboard/summary` | Aggregated recovery metrics |
+| `GET` | `/health` | Liveness probe |
+| `GET` | `/` | Serves `index.html` SPA |
 
 ---
 
-### 2. Recovery Router (`/recovery`)
+## Setup & Run
 
-#### `POST /recovery/run-batch`
-Runs a single recovery pass over every transaction with status `failed` or `pending`.
-- **Query Parameters**:
-  - `confidence_threshold` (optional float): Overrides the default confidence threshold.
-- **Response Shape** (`list[AttemptOut]`):
-  ```json
-  [
-    {
-      "id": 1,
-      "transaction_id": 1,
-      "attempt_number": 1,
-      "diagnosis": "insufficient_funds",
-      "confidence": 0.95,
-      "action_taken": "retry_in_24h",
-      "reasoning": "Transient/liquidity issue — safe to retry after a cooling window.",
-      "cost": 0.0,
-      "outcome": "failed",
-      "escalated": false,
-      "timestamp": "2026-08-24T01:11:00"
-    }
-  ]
-  ```
-
-#### `POST /recovery/run-until-resolved`
-Runs consecutive recovery attempts for all open transactions until they either succeed, escalate, or hit the stopping rule limit.
-- **Query Parameters**:
-  - `confidence_threshold` (optional float): Overrides the default confidence threshold.
-- **Response Shape**: `list[AttemptOut]` (history of all attempts generated during the loops).
-
-#### `POST /recovery/run/{transaction_id}`
-Executes a single recovery step for a specific transaction.
-- **Path Parameters**:
-  - `transaction_id` (integer, required)
-- **Response Shape**: `AttemptOut`.
-
-#### `GET /recovery/audit/{transaction_id}`
-Fetches the chronological list of recovery attempts for a single transaction.
-- **Path Parameters**:
-  - `transaction_id` (integer, required)
-- **Response Shape**: `list[AttemptOut]` (ordered by `attempt_number` ascending).
-
----
-
-### 3. Dashboard Router (`/dashboard`)
-
-#### `GET /dashboard/summary`
-Returns aggregated analytics metrics for the control room charts and widgets.
-- **Response Shape**:
-  ```json
-  {
-    "total_transactions": 60,
-    "recovered_count": 22,
-    "lost_count": 15,
-    "escalated_terminal_count": 8,
-    "pending_count": 15,
-    "escalated_count": 11,
-    "gross_amount_recovered": 54200.00,
-    "total_action_cost": 555.50,
-    "net_amount_recovered": 53644.50,
-    "amount_still_at_risk": 38100.00,
-    "promise_to_pay_count": 4,
-    "promised_amount_total": 8500.00,
-    "overall_recovery_rate": 0.367,
-    "by_failure_type": {
-      "insufficient_funds": { "total": 15, "recovered": 7, "recovery_rate": 0.467 },
-      "card_declined_generic": { "total": 6, "recovered": 0, "recovery_rate": 0.0 }
-    },
-    "action_counts": {
-      "retry": 18,
-      "nudge": 12,
-      "new_method": 6,
-      "escalate": 11
-    }
-  }
-  ```
-
-#### `GET /health`
-Liveness probe check. Returns `{"status": "ok"}`.
-
-#### `GET /`
-Serves the dynamic single page application interface (`index.html`).
-
----
-
-## Setup & Run Instructions
-
-### Prerequisites
-- Python 3.10 or higher installed on your system.
-
-### Installation
-
-1. Clone or navigate to the repository directory:
-   ```bash
-   cd recovery-bot
-   ```
-
-2. Create a virtual environment and activate it:
-   ```bash
-   python -m venv venv
-   # On Windows (PowerShell):
-   .\venv\Scripts\Activate.ps1
-   # On macOS/Linux:
-   source venv/bin/activate
-   ```
-
-3. Install the required dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. Set up environment variables. Copy `.env.example` to `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-
-5. Configure your variables inside `.env`:
-   - `OPENROUTER_API_KEY`: Paste your OpenRouter API key here to enable LLM-generated recovery messaging.
-   - **Fallback Behavior**: If this key is omitted or the OpenRouter API request fails, the application automatically falls back to predefined, hardcoded templates. This ensures the demo never breaks during live presentations.
-   - `OPENROUTER_MODEL`: Defaults to `meta-llama/llama-3.1-8b-instruct:free` if not specified.
-   - `DATABASE_URL`: Defaults to `sqlite:///./recovery.db`.
-   - `MAX_RETRY_ATTEMPTS`: Defaults to `3`.
-   - `CONFIDENCE_THRESHOLD`: Defaults to `0.70`.
-
-### Running the Server
-Start the FastAPI server via Uvicorn:
 ```bash
-uvicorn app.main:app --reload
-```
-Once started, open `http://127.0.0.1:8000/` in your web browser to interact with the dashboard.
+# 1. Clone and enter
+cd recovery-bot
 
----
+# 2. Create virtualenv
+python -m venv venv
+.\venv\Scripts\Activate.ps1   # Windows
+source venv/bin/activate      # macOS/Linux
 
-## Seeding Demo Data
+# 3. Install dependencies
+pip install -r requirements.txt
 
-The repository contains a seeding script designed to generate a known-good demonstration dataset.
-To run the seeding script:
-```bash
+# 4. Configure environment
+cp .env.example .env
+# Edit .env — add your OPENROUTER_API_KEY (free at openrouter.ai/keys)
+
+# 5. Seed demo transaction
 python scripts/seed_demo.py
+
+# 6. Start server
+uvicorn app.main:app --reload
+
+# Open http://127.0.0.1:8000/
 ```
-### Why it exists and how it works:
-- It drops and recreates the SQLite database tables to ensure a clean slate.
-- It generates exactly 60 transactions using the `baseline` scenario configuration with a fixed random seed (`42`). This creates an identical set of payment failures every run.
-- It immediately executes the `run_until_resolved` loop over the batch.
-- **Purpose**: This ensures that when an evaluator first opens the dashboard, they are not presented with empty charts. Instead, they immediately see a rich history of attempts, costs, recovered amounts, and audit trails.
 
----
+### Environment Variables
 
-## Replay Harness (Anti-Cherry-Picking Proof)
-
-A major criticism of automated agents is that their recovery rates are overfit or cherry-picked to fit a specific dataset. To address this, Recovery Copilot includes a stress-test harness.
-To run the harness:
-```bash
-python scripts/replay_harness.py
-```
-### How it works:
-- It systematically resets the DB and simulates recovery cycles across four distinct synthetic failure distributions:
-  1. `baseline`: Default failure proportions.
-  2. `card_heavy`: High volume of expired cards and invalid CVVs.
-  3. `infra_heavy`: High volume of network timeouts and bank server downtime.
-  4. `ambiguous_heavy`: High volume of generic card declines (triggers more human escalations).
-- It runs a batch recovery and prints the comparative stats (`recovery_rate`, `net_amount_recovered`, `escalated_count`, `lost_count`) side-by-side.
-- **Why it matters**: It proves that the recovery engine is robust under varying circumstances and isn't just hardcoded to succeed on a single predefined set of failures. It serves as anti-cherry-picking proof to the judges, verifying that the agent's performance has been tested across realistic distribution shifts.
-
----
-
-## Deployment
-
-No deployment configuration files (such as `render.yaml`, `Procfile`, or `Dockerfile`) currently exist in this repository. 
-
-To deploy this application to cloud platforms (like Render or Fly.io), you will need to add a `Procfile` specifying the web command:
-```web: uvicorn app.main:app --host 0.0.0.0 --port $PORT```
-And configure the `DATABASE_URL` environment variable to point to a persistent SQLite mount or an external PostgreSQL database.
+| Variable | Default | Description |
+|---|---|---|
+| `OPENROUTER_API_KEY` | — | Free key from openrouter.ai |
+| `OPENROUTER_MODEL` | `meta-llama/llama-3.1-8b-instruct:free` | Primary AI model |
+| `GROQ_API_KEY` | — | Groq fallback key |
+| `GROQ_MODEL` | `llama-3.3-70b-versatile` | Groq fallback model |
+| `NVIDIA_API_KEY` | — | NVIDIA NIM fallback key |
+| `DATABASE_URL` | `sqlite:///./recovery.db` | Database connection |
+| `MAX_RETRY_ATTEMPTS` | `3` | Hard cap per transaction |
+| `CONFIDENCE_THRESHOLD` | `0.70` | Below this → escalate human |
+| `DIAGNOSIS_MODE` | `llm` | `"llm"` or `"deterministic"` |
 
 ---
 
@@ -299,42 +237,66 @@ And configure the `DATABASE_URL` environment variable to point to a persistent S
 recovery-bot/
 ├── app/
 │   ├── core/
-│   │   ├── config.py         # App settings, action costs, environment configuration
-│   │   └── database.py       # SQLAlchemy engine and session dependency
+│   │   ├── config.py              # Settings, action costs, env config
+│   │   └── database.py            # SQLAlchemy engine and session
 │   ├── models/
-│   │   ├── models.py         # Transaction and RecoveryAttempt DB models
-│   │   └── schemas.py        # Pydantic validation schemas
+│   │   ├── models.py              # Transaction & RecoveryAttempt DB models
+│   │   └── schemas.py             # Pydantic validation schemas
 │   ├── routers/
-│   │   ├── dashboard.py      # Endpoints for aggregated stats
-│   │   ├── recovery.py       # Endpoints for running recovery cycles and audit logs
-│   │   └── transactions.py   # Endpoints for batch transaction generation
+│   │   ├── dashboard.py           # Aggregated stats endpoints
+│   │   ├── recovery.py            # Recovery cycle & audit endpoints
+│   │   ├── transactions.py        # Batch generation endpoints
+│   │   └── invoices.py            # B2B invoice recovery endpoints
 │   ├── services/
-│   │   ├── classifier.py     # Deterministic gateway error classification
-│   │   ├── dashboard.py      # Aggregation and metric calculation logic
-│   │   ├── data_generator.py # Synthetic transaction generationmixes
-│   │   ├── decision_router.py# Bounded rules table and confidence gate
-│   │   ├── engine.py         # Transaction lifecycle execution and loop controls
-│   │   └── llm_client.py     # OpenRouter client for compliant copy drafting
-│   └── main.py               # FastAPI entrypoint, middleware, and index.html serving
+│   │   ├── action_executor.py     # Executes approved recovery actions
+│   │   ├── classifier.py          # Deterministic failure classification
+│   │   ├── dashboard.py           # Metric aggregation logic
+│   │   ├── data_generator.py      # Synthetic transaction generation
+│   │   ├── decision_router.py     # Bounded rules table & confidence gate
+│   │   ├── engine.py              # Transaction lifecycle orchestration
+│   │   ├── llm_classifier.py      # Multi-provider AI classification cascade
+│   │   ├── llm_client.py          # LLM message drafting (3-provider cascade)
+│   │   ├── policy_engine.py       # Deterministic policy gate (LLM cannot bypass)
+│   │   ├── recovery_context.py    # Context object passed between attempts
+│   │   ├── recovery_value.py      # Net recovery value calculations
+│   │   └── stateful_predictor.py  # Stateful context propagation between attempts
+│   └── main.py                    # FastAPI entrypoint, CORS, SPA serving
 ├── scripts/
-│   ├── replay_harness.py     # Stress-test simulation harness across distributions
-│   └── seed_demo.py          # Script to reset and seed a baseline demo dataset
-├── .env.example              # Template environment file
-├── .gitignore                # Git exclusion patterns
-├── index.html                # Single Page Application frontend (HTML5/Tailwind/JS)
-├── requirements.txt          # Python project dependencies
-└── recovery.db               # SQLite database file (generated automatically)
+│   ├── replay_harness.py          # Multi-scenario stress test (anti-cherry-picking)
+│   └── seed_demo.py               # Canonical demo transaction seeder
+├── tests/
+│   ├── test_audit.py              # Audit trail correctness tests
+│   └── test_concurrency.py        # Concurrent recovery stress tests
+├── docs/
+│   └── final_benchmark_sanity.md  # Benchmark methodology and sanity checks
+├── .env                           # Environment configuration (not committed)
+├── .env.example                   # Template
+├── index.html                     # Story-driven SPA frontend
+├── requirements.txt               # Python dependencies
+└── recovery.db                    # SQLite DB (auto-created)
 ```
 
 ---
 
-## Roadmap (Intentionally Scoped Out)
+## Replay Harness — Anti-Cherry-Picking Proof
 
-The following features were intentionally excluded from the initial version to focus on core logic and decision safety:
+```bash
+python scripts/replay_harness.py
+```
 
-1. **Real SMS/Email/WhatsApp Delivery Channels**:
-   - *Why deferred*: Avoids dependency on external service accounts (Twilio, SendGrid) and API keys during judging. Instead, the engine outputs the generated message in the transaction's audit trail to prove functional correctness without adding communication channel latency or setup barriers.
-2. **Natural-Language Query Interface (LLM Dashboard Querying)**:
-   - *Why deferred*: Incorporating a text-to-SQL or semantic search interface on the dashboard increases security risks (such as prompt injection or hallucinated metrics). Priority was given to exact, deterministic chart aggregations.
-3. **Automated Cron Reporting**:
-   - *Why deferred*: Running automated daily emails or slack summaries requires background workers (like Celery) and broker infrastructure. The current API exposes dashboard summaries synchronously, keeping the codebase lightweight and easy to run locally in seconds.
+Runs recovery cycles across 4 distinct failure distributions to prove the engine isn't overfit to a single dataset:
+
+| Scenario | Description | Expected Behaviour |
+|---|---|---|
+| `baseline` | Normal distribution | ~35–45% recovery rate |
+| `card_heavy` | High expired card / invalid CVV | Lower recovery (customer-side failures) |
+| `infra_heavy` | High bank_server_down / network_timeout | Higher recovery (infra failures resolve on retry) |
+| `ambiguous_heavy` | High generic declines | More escalations (low confidence → human review) |
+
+---
+
+## Roadmap (Intentionally Deferred)
+
+1. **Real SMS/Email delivery**: Deferred to avoid Twilio/SendGrid dependency during judging. LLM-generated messages appear in the audit trail to prove functional correctness.
+2. **Natural-language dashboard queries**: Deferred — text-to-SQL introduces prompt injection risk. Deterministic aggregations are preferred.
+3. **Automated cron reporting**: Deferred — requires Celery + broker infrastructure. Current API exposes summaries synchronously.

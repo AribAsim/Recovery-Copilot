@@ -260,15 +260,16 @@
                 <div class="bg-surface-container-high border border-outline-variant rounded-xl p-6 relative overflow-hidden">
                     <div class="flex justify-between items-center mb-4 border-b border-outline-variant/10 pb-3">
                         <h3 class="font-label-md text-label-md font-bold text-white tracking-widest uppercase">AI Diagnosis</h3>
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-600/20 text-purple-400 border border-purple-500/30" id="diagnosis-source-badge">
-                            AI
-                        </span>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-3 gap-4">
                         <div>
                             <span class="text-xs text-on-surface-variant block uppercase tracking-wider font-medium">Diagnosis</span>
-                            <span class="text-base font-bold text-white mt-1 block" id="ai-diagnosis-val">Transient infrastructure failure</span>
+                            <span class="text-sm font-bold text-white mt-1 block" id="ai-diagnosis-val">Transient infrastructure failure</span>
+                        </div>
+                        <div>
+                            <span class="text-xs text-on-surface-variant block uppercase tracking-wider font-medium">Source</span>
+                            <span class="inline-flex items-center mt-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-600/20 text-purple-400 border border-purple-500/30" id="diagnosis-source-badge">AI</span>
                         </div>
                         <div>
                             <span class="text-xs text-on-surface-variant block uppercase tracking-wider font-medium">Confidence</span>
@@ -547,10 +548,11 @@
                 if (!txnsRes.ok) throw new Error('Failed to query transactions list');
                 const transactions = await txnsRes.json();
                 
-                const demoTxn = transactions.find(t => t.payment_id === 'demo_pay_ref_4500' || t.failure_code === 'bank_server_down');
+                // Only match by exact payment_id — never fall back to failure_code which could grab any random transaction
+                const demoTxn = transactions.find(t => t.payment_id === 'demo_pay_ref_4500');
                 if (!demoTxn) {
-                    // Prepopulate with blank outcome states if demo not seeded
-                    renderEmptyDemoState();
+                    // Demo transaction not found — show seed instruction
+                    renderNotSeededState();
                     return;
                 }
 
@@ -573,9 +575,11 @@
         function renderEmptyDemoState() {
             document.getElementById('ai-diagnosis-val').innerText = 'Pending pipeline run';
             document.getElementById('ai-confidence-val').innerText = '-';
+            document.getElementById('diagnosis-source-badge').className = 'inline-flex items-center mt-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-surface-variant text-on-surface-variant border border-outline-variant';
+            document.getElementById('diagnosis-source-badge').innerText = 'Pending';
             document.getElementById('policy-gate-status').className = 'inline-flex items-center px-3 py-1 rounded text-xs font-extrabold bg-surface-variant text-on-surface-variant uppercase tracking-wider';
             document.getElementById('policy-gate-status').innerText = 'Idle';
-            document.getElementById('policy-rules-list').innerHTML = `<div class="text-[11px] text-on-surface-variant">Click RUN NEXT RECOVERY to seed pipeline.</div>`;
+            document.getElementById('policy-rules-list').innerHTML = `<div class="text-[11px] text-on-surface-variant">Click RUN NEXT RECOVERY to evaluate policy.</div>`;
             document.getElementById('executor-action-val').innerText = '-';
             document.getElementById('executor-result-val').innerText = '-';
             document.getElementById('next-action-val').innerText = 'Run Pipeline';
@@ -584,10 +588,30 @@
             document.getElementById('final-outcome-card').innerHTML = `
                 <div class="text-center text-on-surface-variant py-4 flex flex-col items-center gap-1">
                     <span class="material-symbols-outlined text-3xl">hourglass_empty</span>
-                    <span class="font-bold text-sm">Demo not started yet</span>
+                    <span class="font-bold text-sm">Run the pipeline to see the outcome</span>
                 </div>
             `;
             document.getElementById('timeline-nodes-container').innerHTML = `<div class="text-on-surface-variant text-xs py-4 text-center">Timeline will show attempt progress.</div>`;
+        }
+
+        function renderNotSeededState() {
+            renderEmptyDemoState();
+            document.getElementById('ai-diagnosis-val').innerText = 'Demo not seeded';
+            document.getElementById('final-outcome-card').innerHTML = `
+                <div class="bg-warning/10 border border-warning/30 rounded-xl p-5 flex flex-col gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-warning">warning</span>
+                        <span class="font-bold text-white text-sm">DEMO TRANSACTION NOT FOUND</span>
+                    </div>
+                    <p class="text-xs text-on-surface-variant leading-relaxed">
+                        The canonical demo transaction (<code class="text-warning font-mono">demo_pay_ref_4500</code>) is not in the database.
+                    </p>
+                    <p class="text-xs text-on-surface-variant font-mono bg-background/60 px-3 py-2 rounded border border-outline-variant/20">
+                        python scripts/seed_demo.py
+                    </p>
+                </div>
+            `;
+            document.getElementById('timeline-nodes-container').innerHTML = `<div class="text-warning text-xs py-3 text-center font-mono">Seed required → python scripts/seed_demo.py</div>`;
         }
 
         function renderTimeline(attempts) {
@@ -680,11 +704,12 @@
             
             const diagBadge = document.getElementById('diagnosis-source-badge');
             if (attempt.diagnosis_source === 'AI') {
-                diagBadge.className = 'inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-600/20 text-purple-400 border border-purple-500/30';
+                diagBadge.className = 'inline-flex items-center mt-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-600/20 text-purple-400 border border-purple-500/30';
                 diagBadge.innerText = 'AI';
-            } else if (attempt.diagnosis_source) {
-                diagBadge.className = 'inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-orange-600/20 text-orange-400 border border-orange-500/30';
-                diagBadge.innerText = `FALLBACK (${attempt.diagnosis_source})`;
+            } else {
+                // Deterministic Rules or any fallback — display honestly as DETERMINISTIC FALLBACK
+                diagBadge.className = 'inline-flex items-center mt-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-orange-600/20 text-orange-400 border border-orange-500/30';
+                diagBadge.innerText = 'DETERMINISTIC FALLBACK';
             }
 
             // 2. Policy Gate Rules Card
@@ -789,7 +814,7 @@
                         </span>
                     </div>
                     <div class="text-xs text-on-surface-variant mt-2 leading-relaxed">
-                        Currently evaluated attempt N°${attempts.length} has finished. Waiting for the next execution step or human escalation path.
+                        Attempt ${attempts.length} is complete. The outcome has been recorded as context for the next recovery decision. Click <strong class="text-white">RUN NEXT RECOVERY</strong> to run the next attempt.
                     </div>
                 `;
                 setLoading('btn-demo-step', false, 'RUN NEXT RECOVERY');
@@ -846,23 +871,19 @@
         }
 
         async function resetDemoTxn() {
-            setLoading('btn-demo-step', true, 'Resetting...');
+            setLoading('btn-demo-step', true, 'Checking demo state...');
             try {
-                const genRes = await fetch(`${API_BASE}/transactions/generate`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ n: 60, scenario: 'baseline', seed: 42 }) 
-                });
-                
-                if (genRes.ok) {
-                    showToast('Sandbox transactions seeded successfully!', 'success');
-                    await refreshDemoStory();
-                } else {
-                    throw new Error('Failure seeding transactions');
-                }
+                // Reload story — do NOT call generate which appends 60 random txns
+                // and pollutes the DB with transactions that shadow the canonical demo.
+                // The canonical demo txn (demo_pay_ref_4500) must be seeded once via:
+                //   python scripts/seed_demo.py
+                // After seeding, the demo txn persists and only its recovery attempts
+                // need to be cleared (which requires re-running seed_demo.py again).
+                await refreshDemoStory();
+                showToast('Demo state refreshed. Run seed_demo.py to fully reset attempts.', 'success');
             } catch (err) {
                 console.error(err);
-                showToast(`Unable to reset demo transactions: ${err.message}`);
+                showToast(`Unable to refresh demo: ${err.message}`);
             } finally {
                 setLoading('btn-demo-step', false, 'RUN NEXT RECOVERY');
             }
@@ -876,7 +897,8 @@
                 if (!txnsRes.ok) throw new Error('Failed to query transactions list');
                 const transactions = await txnsRes.json();
                 
-                const demoTxn = transactions.find(t => t.payment_id === 'demo_pay_ref_4500' || t.failure_code === 'bank_server_down');
+                // Always match by payment_id only — never fall back to failure_code
+                const demoTxn = transactions.find(t => t.payment_id === 'demo_pay_ref_4500');
                 if (!demoTxn) {
                     showToast('Demo transaction not found. Re-seeding...');
                     await resetDemoTxn();

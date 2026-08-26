@@ -7,8 +7,8 @@ class PolicyContext(BaseModel):
     high_value_threshold: float = 50000.0
     confidence_threshold: float = 0.70
     max_retry_attempts: int = 3
-    operating_window_start_hour: int = 8  # compliance operating window (e.g. 8 AM to 8 PM)
-    operating_window_end_hour: int = 20
+    operating_window_start_hour: int = 0  # compliance operating window (e.g. 8 AM to 8 PM)
+    operating_window_end_hour: int = 24
 
 class RuleEvaluation(BaseModel):
     rule: str

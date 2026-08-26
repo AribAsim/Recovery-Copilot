@@ -422,11 +422,11 @@ Classify the payment failure into exactly ONE of these categories:
 
 Return ONLY one JSON object using exactly these fields:
 
-{{
+{
   "category": "one allowed category",
   "confidence": 0.0,
   "reasoning": "one short sentence"
-}}
+}
 
 Rules:
 

@@ -4,11 +4,8 @@ LLM-based payment failure classifier.
 Provider chain:
     OpenRouter -> NVIDIA NIM -> Groq -> deterministic fallback
 
-The provider layer is treated as untrusted input:
-- responses are validated before use
-- malformed responses are rejected
-- provider errors never leak into user-facing reasoning
-- deterministic classification remains the final safety fallback
+The LLM is used only for diagnosis.
+All returned data is validated before entering the recovery pipeline.
 """
 
 import json
@@ -23,37 +20,61 @@ from app.services.classifier import classify_failure, KNOWN_CODES
 from app.services.llm_client import is_valid_key
 
 
+# ---------------------------------------------------------------------------
+# VALID CLASSIFICATION CATEGORIES
+# ---------------------------------------------------------------------------
+
 VALID_CATEGORIES = set(KNOWN_CODES.keys()) | {"unknown"}
 
 
-def _log_provider_error(provider: dict, exc: Exception, response_body: str | None = None):
-    """Log useful diagnostics without exposing them to the audit trail."""
+# ---------------------------------------------------------------------------
+# PROVIDER ERROR LOGGING
+# ---------------------------------------------------------------------------
+
+def _log_provider_error(
+    provider: dict,
+    exc: Exception,
+    response_body: str | None = None,
+) -> None:
+    """
+    Log provider failures for server-side diagnostics.
+
+    Never expose API keys or full provider responses.
+    """
 
     status = getattr(getattr(exc, "response", None), "status_code", None)
 
-    msg = (
-        f"[LLM] provider_model={provider['model']} "
+    message = (
+        f"[LLM] provider={provider['name']} "
+        f"model={provider['model']} "
         f"error={type(exc).__name__}"
     )
 
     if status:
-        msg += f" status={status}"
+        message += f" status={status}"
 
-    print(msg, file=sys.stderr)
+    print(message, file=sys.stderr)
 
     if response_body:
-        # Keep logs useful but bounded.
-        safe_body = response_body[:1000].replace("\n", " ")
+        preview = response_body[:1000].replace("\n", " ")
+
         print(
-            f"[LLM] response_preview={safe_body}",
+            f"[LLM] response_preview={preview}",
             file=sys.stderr,
         )
 
 
+# ---------------------------------------------------------------------------
+# RESPONSE EXTRACTION
+# ---------------------------------------------------------------------------
+
 def _extract_content(data: dict[str, Any]) -> str:
     """
     Extract assistant content from an OpenAI-compatible response.
-    Raises ValueError when the structure is unusable.
+
+    Supports:
+        choices[0].message.content -> string
+        choices[0].message.content -> list of text blocks
     """
 
     choices = data.get("choices")
@@ -71,19 +92,29 @@ def _extract_content(data: dict[str, Any]) -> str:
     if content is None:
         raise ValueError("LLM response contained empty content")
 
-    # Some providers may return structured content instead of a plain string.
+    # Normal OpenAI-compatible response.
     if isinstance(content, str):
-        return content.strip()
+        content = content.strip()
 
+        if content:
+            return content
+
+        raise ValueError("LLM response content was empty")
+
+    # Some providers may return structured content blocks.
     if isinstance(content, list):
+
         parts = []
 
         for item in content:
+
             if isinstance(item, str):
                 parts.append(item)
 
             elif isinstance(item, dict):
+
                 text = item.get("text")
+
                 if isinstance(text, str):
                     parts.append(text)
 
@@ -92,28 +123,45 @@ def _extract_content(data: dict[str, Any]) -> str:
         if result:
             return result
 
-    raise ValueError("LLM response content had an unsupported format")
+    raise ValueError(
+        f"Unsupported LLM content format: {type(content).__name__}"
+    )
 
+
+# ---------------------------------------------------------------------------
+# JSON EXTRACTION
+# ---------------------------------------------------------------------------
 
 def _extract_json(text: str) -> dict[str, Any]:
     """
-    Parse JSON returned by the model.
+    Extract a JSON object from model output.
 
-    Accepts:
-    1. Plain JSON
-    2. ```json ... ``` fenced JSON
-    3. JSON embedded around minor surrounding text
+    Handles:
+
+        {"category": "...", ...}
+
+    and:
+
+        ```json
+        {"category": "...", ...}
+        ```
+
+    and models that accidentally prepend explanatory text.
     """
+
+    if not text:
+        raise ValueError("LLM returned empty text")
 
     text = text.strip()
 
-    # Remove markdown code fences.
+    # Remove markdown fences.
     text = re.sub(
         r"^```(?:json)?\s*",
         "",
         text,
         flags=re.IGNORECASE,
     )
+
     text = re.sub(
         r"\s*```$",
         "",
@@ -121,80 +169,136 @@ def _extract_json(text: str) -> dict[str, Any]:
         flags=re.IGNORECASE,
     )
 
+    # First attempt: entire response is JSON.
     try:
+
         parsed = json.loads(text)
 
-        if not isinstance(parsed, dict):
-            raise ValueError("LLM JSON root was not an object")
-
-        return parsed
+        if isinstance(parsed, dict):
+            return parsed
 
     except json.JSONDecodeError:
-        # Try extracting the first JSON object.
-        start = text.find("{")
-        end = text.rfind("}")
+        pass
 
-        if start == -1 or end <= start:
-            raise ValueError("LLM response did not contain valid JSON")
+    # Second attempt:
+    # Find the first JSON object inside surrounding text.
+    start = text.find("{")
+    end = text.rfind("}")
 
-        candidate = text[start:end + 1]
+    if start == -1 or end <= start:
+        raise ValueError(
+            "LLM response did not contain a JSON object"
+        )
+
+    candidate = text[start:end + 1]
+
+    try:
 
         parsed = json.loads(candidate)
 
-        if not isinstance(parsed, dict):
-            raise ValueError("LLM JSON root was not an object")
+    except json.JSONDecodeError as exc:
 
-        return parsed
+        raise ValueError(
+            f"LLM JSON parsing failed: {exc}"
+        ) from exc
+
+    if not isinstance(parsed, dict):
+        raise ValueError(
+            "LLM JSON root must be an object"
+        )
+
+    return parsed
 
 
-def _validate_result(parsed: dict[str, Any]) -> tuple[str, float, str]:
-    """Validate and normalize the model's classification."""
+# ---------------------------------------------------------------------------
+# RESULT VALIDATION
+# ---------------------------------------------------------------------------
+
+def _validate_result(
+    parsed: dict[str, Any],
+) -> tuple[str, float, str]:
+    """
+    Validate and normalize the model classification.
+    """
+
+    # -------------------------
+    # Category
+    # -------------------------
 
     category = parsed.get("category")
 
     if not isinstance(category, str):
-        raise ValueError("Missing category")
+        raise ValueError(
+            "LLM response missing string category"
+        )
 
     category = category.strip()
 
     if category not in VALID_CATEGORIES:
+
         raise ValueError(
             f"Invalid category returned by LLM: {category}"
         )
+
+    # -------------------------
+    # Confidence
+    # -------------------------
 
     confidence = parsed.get("confidence")
 
     try:
         confidence = float(confidence)
-    except (TypeError, ValueError):
-        raise ValueError("Invalid confidence returned by LLM")
 
-    confidence = max(0.0, min(1.0, confidence))
+    except (TypeError, ValueError) as exc:
 
-    reasoning = parsed.get("reasoning", "")
+        raise ValueError(
+            "Invalid confidence returned by LLM"
+        ) from exc
+
+    # Clamp confidence to safe range.
+    confidence = max(
+        0.0,
+        min(1.0, confidence),
+    )
+
+    # -------------------------
+    # Reasoning
+    # -------------------------
+
+    reasoning = parsed.get(
+        "reasoning",
+        "",
+    )
 
     if not isinstance(reasoning, str):
         reasoning = ""
 
-    return category, confidence, reasoning.strip()
+    reasoning = reasoning.strip()
+
+    # Keep stored reasoning small.
+    reasoning = reasoning[:500]
+
+    return (
+        category,
+        confidence,
+        reasoning,
+    )
 
 
-def classify(raw_text: str, fallback_code: str | None = None) -> dict:
+# ---------------------------------------------------------------------------
+# PROVIDER CONFIGURATION
+# ---------------------------------------------------------------------------
+
+def _get_providers() -> list[dict]:
     """
-    Classify a payment failure using the configured LLM provider chain.
-
-    Returns a clean structured result.
+    Build the configured provider fallback chain.
     """
-
-    if not raw_text:
-        raw_text = "Unknown error"
-
-    fallback_val = fallback_code or "card_declined_generic"
-    fallback_res = classify_failure(fallback_val)
 
     providers = []
 
+    # Primary: OpenRouter
     if is_valid_key(settings.OPENROUTER_API_KEY):
+
         providers.append({
             "name": "OpenRouter",
             "url": settings.OPENROUTER_URL,
@@ -202,7 +306,9 @@ def classify(raw_text: str, fallback_code: str | None = None) -> dict:
             "model": settings.OPENROUTER_MODEL,
         })
 
+    # Fallback 1: NVIDIA NIM
     if is_valid_key(settings.NVIDIA_API_KEY):
+
         providers.append({
             "name": "NVIDIA NIM",
             "url": settings.NVIDIA_API_URL,
@@ -210,7 +316,9 @@ def classify(raw_text: str, fallback_code: str | None = None) -> dict:
             "model": settings.NVIDIA_MODEL,
         })
 
+    # Fallback 2: Groq
     if is_valid_key(settings.GROQ_API_KEY):
+
         providers.append({
             "name": "Groq",
             "url": settings.GROQ_API_URL,
@@ -218,7 +326,68 @@ def classify(raw_text: str, fallback_code: str | None = None) -> dict:
             "model": settings.GROQ_MODEL,
         })
 
+    return providers
+
+
+# ---------------------------------------------------------------------------
+# MAIN CLASSIFIER
+# ---------------------------------------------------------------------------
+
+def classify(
+    raw_text: str,
+    fallback_code: str | None = None,
+) -> dict:
+    """
+    Classify a payment failure using the configured AI provider chain.
+
+    Provider order:
+
+        OpenRouter
+            ↓
+        NVIDIA NIM
+            ↓
+        Groq
+            ↓
+        deterministic classifier
+
+    Returns:
+
+        {
+            "diagnosis": str,
+            "confidence": float,
+            "reasoning": str,
+            "raw_reasoning": str,
+            "mode_used": str,
+            "predictor_status": str,
+            "fallback_status": str
+        }
+    """
+
+    # -----------------------------------------------------------------------
+    # Input normalization
+    # -----------------------------------------------------------------------
+
+    if not raw_text:
+        raw_text = "Unknown error"
+
+    fallback_val = (
+        fallback_code
+        or "card_declined_generic"
+    )
+
+    fallback_res = classify_failure(
+        fallback_val
+    )
+
+    # -----------------------------------------------------------------------
+    # Provider list
+    # -----------------------------------------------------------------------
+
+    providers = _get_providers()
+
+    # No AI providers configured.
     if not providers:
+
         return {
             "diagnosis": fallback_res["diagnosis"],
             "confidence": fallback_res["confidence"],
@@ -226,42 +395,65 @@ def classify(raw_text: str, fallback_code: str | None = None) -> dict:
                 "AI prediction unavailable. "
                 "A deterministic diagnosis was used."
             ),
-            "raw_reasoning": "Fallback used: no valid AI provider configured.",
+            "raw_reasoning": (
+                "Fallback used: "
+                "no valid AI provider configured."
+            ),
             "mode_used": "deterministic_fallback",
             "predictor_status": "fallback",
             "fallback_status": "Active",
+            "provider": "deterministic",
         }
+
+    # -----------------------------------------------------------------------
+    # Classification prompt
+    # -----------------------------------------------------------------------
+
+    categories = ", ".join(
+        sorted(VALID_CATEGORIES)
+    )
 
     system_prompt = f"""
 You are a payment failure classification system.
 
 Classify the payment failure into exactly ONE of these categories:
 
-{", ".join(sorted(VALID_CATEGORIES))}
+{categories}
 
-Return ONLY a JSON object:
+Return ONLY one JSON object using exactly these fields:
 
 {{
   "category": "one allowed category",
   "confidence": 0.0,
-  "reasoning": "short explanation"
+  "reasoning": "one short sentence"
 }}
 
 Rules:
-- category MUST exactly match one of the allowed categories.
+
+- category MUST exactly match one allowed category.
 - confidence MUST be between 0.0 and 1.0.
-- reasoning must be concise.
-- Do not include markdown.
-- Do not include additional fields.
+- reasoning MUST be one short sentence.
+- Do NOT provide a thinking process.
+- Do NOT provide chain-of-thought.
+- Do NOT provide analysis before the JSON.
+- Do NOT use Markdown.
+- Do NOT use ```json.
+- Do NOT include any text before or after the JSON.
 """
+
+    # -----------------------------------------------------------------------
+    # Provider fallback chain
+    # -----------------------------------------------------------------------
 
     for provider in providers:
 
         response_text = None
 
         try:
+
             payload = {
                 "model": provider["model"],
+
                 "messages": [
                     {
                         "role": "system",
@@ -270,44 +462,69 @@ Rules:
                     {
                         "role": "user",
                         "content": (
-                            "Analyze this payment failure:\n"
+                            "Classify this payment failure:\n"
                             f"{raw_text}"
                         ),
                     },
                 ],
-                "max_tokens": 200,
+
+                # Keep output short.
+                "max_tokens": 100,
+
+                # Deterministic generation.
                 "temperature": 0,
             }
 
-            # Do NOT force response_format here.
-            # Different providers/models handle it differently.
-            resp = httpx.post(
+            # ---------------------------------------------------------------
+            # Request
+            # ---------------------------------------------------------------
+
+            response = httpx.post(
                 provider["url"],
+
                 headers={
-                    "Authorization": f"Bearer {provider['key']}",
+                    "Authorization": (
+                        f"Bearer {provider['key']}"
+                    ),
                     "Content-Type": "application/json",
                 },
+
                 json=payload,
+
                 timeout=10.0,
             )
 
-            response_text = resp.text
+            response_text = response.text
 
-            resp.raise_for_status()
+            # HTTP errors.
+            response.raise_for_status()
 
-            data = resp.json()
+            # ---------------------------------------------------------------
+            # Parse provider response
+            # ---------------------------------------------------------------
 
-            content = _extract_content(data)
+            data = response.json()
 
-            parsed = _extract_json(content)
-
-            category, confidence, raw_reasoning = _validate_result(
-                parsed
+            content = _extract_content(
+                data
             )
+
+            parsed = _extract_json(
+                content
+            )
+
+            category, confidence, reasoning = (
+                _validate_result(parsed)
+            )
+
+            # ---------------------------------------------------------------
+            # Successful AI classification
+            # ---------------------------------------------------------------
 
             print(
                 f"[LLM] {provider['name']} "
-                f"({provider['model']}) → SUCCESS "
+                f"model={provider['model']} "
+                f"SUCCESS "
                 f"diagnosis={category} "
                 f"confidence={confidence:.2f}",
                 file=sys.stderr,
@@ -315,42 +532,71 @@ Rules:
 
             return {
                 "diagnosis": category,
+
                 "confidence": confidence,
+
                 "reasoning": (
-                    f"AI classified the payment failure as "
+                    "AI classified the payment failure as "
                     f"{category.replace('_', ' ')}."
                 ),
-                "raw_reasoning": raw_reasoning,
+
+                "raw_reasoning": reasoning,
+
                 "mode_used": "llm",
+
                 "predictor_status": "success",
+
                 "fallback_status": "Inactive",
+
                 "provider": provider["name"],
+
+                "model": provider["model"],
             }
 
+        # ---------------------------------------------------------------
+        # Provider failure
+        # ---------------------------------------------------------------
+
         except Exception as exc:
+
             _log_provider_error(
                 provider,
                 exc,
                 response_body=response_text,
             )
+
+            # Try next provider.
             continue
 
-    # All configured AI providers failed.
+    # -----------------------------------------------------------------------
+    # FINAL DETERMINISTIC FALLBACK
+    # -----------------------------------------------------------------------
+
     print(
-        "[LLM] All configured providers failed. "
+        "[LLM] All configured AI providers failed. "
         "Using deterministic fallback.",
         file=sys.stderr,
     )
 
     return {
         "diagnosis": fallback_res["diagnosis"],
+
         "confidence": fallback_res["confidence"],
+
         "reasoning": (
             "AI prediction was unavailable. "
             "A deterministic diagnosis was used."
         ),
-        "raw_reasoning": "All configured AI providers failed.",
+
+        "raw_reasoning": (
+            "All configured AI providers failed."
+        ),
+
         "mode_used": "deterministic_fallback",
+
         "predictor_status": "fallback",
+
         "fallback_status": "Active",
+
+        "provider": "deterministic",
     }

@@ -288,14 +288,18 @@ def reset_demo_transaction(db: Session) -> Transaction:
     
     demo_payment_ref = "demo_pay_ref_4500"
     
-    # 1. Clean up any existing demo state to make it idempotent
-    old_txns = db.query(Transaction).filter(Transaction.payment_id == demo_payment_ref).all()
-    for old_txn in old_txns:
-        # Delete corresponding attempts to satisfy foreign key constraint
-        db.query(RecoveryAttempt).filter(RecoveryAttempt.transaction_id == old_txn.id).delete()
-        db.delete(old_txn)
-    
-    db.commit()
+    try:
+        # 1. Clean up any existing demo state to make it idempotent
+        old_txns = db.query(Transaction).filter(Transaction.payment_id == demo_payment_ref).all()
+        for old_txn in old_txns:
+            # Delete corresponding attempts to satisfy foreign key constraint
+            db.query(RecoveryAttempt).filter(RecoveryAttempt.transaction_id == old_txn.id).delete()
+            db.delete(old_txn)
+        
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"Warning: Failed to clean up old demo transaction: {e}")
 
     # 2. Insert fresh fixed transaction
     demo_txn = Transaction(
@@ -313,7 +317,7 @@ def reset_demo_transaction(db: Session) -> Transaction:
         payment_method="card",
         failure_source="bank",
         failure_step="payment_authorization",
-        failure_reason="network_timeout",
+        failure_reason="bank_server_down",
         gateway="razorpay",
         bank="HDFC",
         checkout_state="failed"
@@ -323,4 +327,3 @@ def reset_demo_transaction(db: Session) -> Transaction:
     db.commit()
     db.refresh(demo_txn)
     return demo_txn
-

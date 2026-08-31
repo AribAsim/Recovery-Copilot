@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import Base, engine, SessionLocal
 from app.models.models import Transaction
-from app.services.data_generator import generate_batch, SCENARIOS
+from app.services.data_generator import generate_batch, SCENARIOS, reset_demo_transaction
 from app.services.engine import run_until_resolved
 from app.routers import transactions, recovery, dashboard, invoices
 
@@ -13,21 +13,32 @@ Base.metadata.create_all(bind=engine)
 # Auto-seed database if empty (ideal for ephemeral hackathon deployments)
 db = SessionLocal()
 try:
-    from app.services.data_generator import reset_demo_transaction
+    # Check if database is empty first
+    txn_count = db.query(Transaction).count()
     demo_exists = db.query(Transaction).filter(Transaction.payment_id == "demo_pay_ref_4500").first() is not None
 
-    if db.query(Transaction).count() == 0:
+    if txn_count == 0:
         print("Database is empty. Auto-seeding default demo dataset...")
-        generate_batch(db, n=60, mix=SCENARIOS["baseline"], seed=42)
-        run_until_resolved(db)
-        print("Auto-seeding complete.")
+        try:
+            generate_batch(db, n=60, mix=SCENARIOS["baseline"], seed=42)
+            run_until_resolved(db)
+            print("Auto-seeding batch transactions complete.")
+        except Exception as e:
+            print(f"Failed to seed batch transactions: {e}")
+            db.rollback()
 
+    # Always ensure demo transaction exists (idempotent)
     if not demo_exists:
         print("Demo transaction missing. Auto-seeding demo transaction...")
-        reset_demo_transaction(db)
-        print("Demo transaction auto-seeded successfully.")
+        try:
+            reset_demo_transaction(db)
+            print("Demo transaction auto-seeded successfully.")
+        except Exception as e:
+            print(f"Failed to seed demo transaction: {e}")
+            db.rollback()
 except Exception as e:
     print(f"Auto-seeding bypassed/failed: {e}")
+    db.rollback()
 finally:
     db.close()
 
@@ -71,4 +82,3 @@ def root():
         with open(html_path, "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
     return HTMLResponse(content="<h1>index.html not found in root directory</h1>", status_code=404)
-

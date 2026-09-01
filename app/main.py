@@ -15,7 +15,7 @@ db = SessionLocal()
 try:
     # Check if database is empty first
     txn_count = db.query(Transaction).count()
-    demo_exists = db.query(Transaction).filter(Transaction.payment_id == "demo_pay_ref_4500").first() is not None
+    demo_exists = db.query(Transaction).filter(Transaction.payment_id.in_(["demo_pay_ref_4500", "demo_pay_ref_1200"])).count() == 2
 
     if txn_count == 0:
         print("Database is empty. Auto-seeding default demo dataset...")
@@ -27,14 +27,14 @@ try:
             print(f"Failed to seed batch transactions: {e}")
             db.rollback()
 
-    # Always ensure demo transaction exists (idempotent)
+    # Always ensure demo transactions exist (idempotent)
     if not demo_exists:
-        print("Demo transaction missing. Auto-seeding demo transaction...")
+        print("Demo transactions missing. Auto-seeding demo transactions...")
         try:
             reset_demo_transaction(db)
-            print("Demo transaction auto-seeded successfully.")
+            print("Demo transactions auto-seeded successfully.")
         except Exception as e:
-            print(f"Failed to seed demo transaction: {e}")
+            print(f"Failed to seed demo transactions: {e}")
             db.rollback()
 except Exception as e:
     print(f"Auto-seeding bypassed/failed: {e}")
@@ -80,5 +80,10 @@ def root():
     html_path = os.path.join(root_dir, "index.html")
     if os.path.exists(html_path):
         with open(html_path, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
+            headers = {
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+            return HTMLResponse(content=f.read(), headers=headers)
     return HTMLResponse(content="<h1>index.html not found in root directory</h1>", status_code=404)

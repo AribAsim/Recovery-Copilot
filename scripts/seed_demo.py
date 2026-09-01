@@ -14,7 +14,7 @@ def seed_demo_txn():
     db = SessionLocal()
     try:
         reset_demo_transaction(db)
-        print("Demo transaction seeded successfully! payment_id=demo_pay_ref_4500")
+        print("Demo transactions seeded successfully! (5 scenario transactions created)")
     finally:
         db.close()
 

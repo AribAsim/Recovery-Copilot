@@ -286,11 +286,59 @@ def generate_invoice_batch(db: Session, n: int = 20, seed: int | None = None):
 def reset_demo_transaction(db: Session) -> Transaction:
     from app.models.models import Transaction, RecoveryAttempt
     
-    demo_payment_ref = "demo_pay_ref_4500"
+    demo_configs = [
+        {
+            "payment_id": "demo_pay_ref_4500",
+            "customer_id": "cust_demo_01",
+            "amount": 4500.0,
+            "failure_code": "bank_server_down",
+            "raw_failure_text": "Bank server response timed out during authorization code lookup",
+            "bank": "HDFC",
+            "order_id": "demo_order_101"
+        },
+        {
+            "payment_id": "demo_pay_ref_1200",
+            "customer_id": "cust_demo_02",
+            "amount": 1200.0,
+            "failure_code": "expired_card",
+            "raw_failure_text": "54 - Card expired / invalid expiration date provided",
+            "bank": "ICICI",
+            "order_id": "demo_order_102"
+        },
+        {
+            "payment_id": "demo_pay_ref_7800",
+            "customer_id": "cust_demo_03",
+            "amount": 7800.0,
+            "failure_code": "insufficient_funds",
+            "raw_failure_text": "51 - Insufficient funds / over limit on card account",
+            "bank": "SBI",
+            "order_id": "demo_order_103"
+        },
+        {
+            "payment_id": "demo_pay_ref_3300",
+            "customer_id": "cust_demo_04",
+            "amount": 3300.0,
+            "failure_code": "network_timeout",
+            "raw_failure_text": "91 - Network timeout during payment gateway handshake",
+            "bank": "Axis",
+            "order_id": "demo_order_104"
+        },
+        {
+            "payment_id": "demo_pay_ref_5000",
+            "customer_id": "cust_demo_05",
+            "amount": 5000.0,
+            "failure_code": "card_declined_generic",
+            "raw_failure_text": "Transaction declined by card issuer without specific reason",
+            "bank": "Kotak",
+            "order_id": "demo_order_105"
+        }
+    ]
+
+    demo_payment_refs = [cfg["payment_id"] for cfg in demo_configs]
     
     try:
         # 1. Clean up any existing demo state to make it idempotent
-        old_txns = db.query(Transaction).filter(Transaction.payment_id == demo_payment_ref).all()
+        old_txns = db.query(Transaction).filter(Transaction.payment_id.in_(demo_payment_refs)).all()
         for old_txn in old_txns:
             # Delete corresponding attempts to satisfy foreign key constraint
             db.query(RecoveryAttempt).filter(RecoveryAttempt.transaction_id == old_txn.id).delete()
@@ -299,31 +347,37 @@ def reset_demo_transaction(db: Session) -> Transaction:
         db.commit()
     except Exception as e:
         db.rollback()
-        print(f"Warning: Failed to clean up old demo transaction: {e}")
+        print(f"Warning: Failed to clean up old demo transactions: {e}")
 
-    # 2. Insert fresh fixed transaction
-    demo_txn = Transaction(
-        customer_id="cust_demo_01",
-        amount=4500.0,
-        failure_code="bank_server_down",
-        raw_failure_text="Bank server response timed out during authorization code lookup",
-        status="failed",
-        attempts_count=0,
-        promise_to_pay=False,
-        promised_amount=0.0,
-        payment_id=demo_payment_ref,
-        order_id="demo_order_101",
-        currency="INR",
-        payment_method="card",
-        failure_source="bank",
-        failure_step="payment_authorization",
-        failure_reason="bank_server_down",
-        gateway="razorpay",
-        bank="HDFC",
-        checkout_state="failed"
-    )
-    
-    db.add(demo_txn)
+    # 2. Insert fresh fixed transactions
+    created_txns = []
+    for cfg in demo_configs:
+        txn = Transaction(
+            customer_id=cfg["customer_id"],
+            amount=cfg["amount"],
+            failure_code=cfg["failure_code"],
+            raw_failure_text=cfg["raw_failure_text"],
+            status="failed",
+            attempts_count=0,
+            promise_to_pay=False,
+            promised_amount=0.0,
+            payment_id=cfg["payment_id"],
+            order_id=cfg["order_id"],
+            currency="INR",
+            payment_method="card",
+            failure_source="bank" if cfg["failure_code"] in ["bank_server_down", "network_timeout"] else "card",
+            failure_step="payment_authorization",
+            failure_reason=cfg["failure_code"],
+            gateway="razorpay",
+            bank=cfg["bank"],
+            checkout_state="failed"
+        )
+        db.add(txn)
+        created_txns.append(txn)
+
     db.commit()
-    db.refresh(demo_txn)
-    return demo_txn
+    for txn in created_txns:
+        db.refresh(txn)
+    
+    return created_txns[0] # Returns main demo txn for endpoint contract compatibility
+

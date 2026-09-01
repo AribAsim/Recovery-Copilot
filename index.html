@@ -1,12 +1,17 @@
 <!DOCTYPE html>
 <html class="dark" lang="en">
+
 <head>
-    <meta charset="utf-8"/>
-    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <title>Recovery Copilot</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap"
+        rel="stylesheet" />
     <script>
         tailwind.config = {
             darkMode: "class",
@@ -105,6 +110,7 @@
         .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         }
+
         .timeline-line::after {
             content: '';
             position: absolute;
@@ -116,76 +122,82 @@
         }
     </style>
 </head>
-<body class="bg-background text-on-surface font-body-md min-h-screen">
+
+<body class="bg-background text-on-surface font-body-md min-h-screen relative" onclick="hideInfoTooltip()">
     <!-- Toast notifications container -->
     <div id="toast-container" class="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none"></div>
 
+    <!-- Floating Global Info Tooltip Popover -->
+    <div id="info-tooltip-popover"
+        class="fixed z-[9999] hidden w-80 max-w-[90vw] bg-[#1e293b] border border-indigo-500/40 rounded-xl p-4 shadow-2xl backdrop-blur-md transition-all duration-200 pointer-events-auto"
+        onclick="event.stopPropagation()">
+        <div class="flex items-center justify-between gap-2 border-b border-slate-700/50 pb-2 mb-2">
+            <span class="font-bold text-xs text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px] text-indigo-400">info</span>
+                <span id="info-tooltip-title">Term Explanation</span>
+            </span>
+            <button onclick="hideInfoTooltip()"
+                class="text-slate-400 hover:text-white text-xs px-1 transition-colors">✕</button>
+        </div>
+        <p id="info-tooltip-body" class="text-[12px] text-slate-200 leading-relaxed font-normal"></p>
+    </div>
+
     <!-- Header Navigation -->
-    <header class="bg-surface-container border-b border-outline-variant flex justify-between items-center w-full px-gutter h-16 max-w-[1600px] mx-auto z-50 sticky top-0">
+    <header
+        class="bg-surface-container border-b border-outline-variant flex justify-between items-center w-full px-gutter h-16 max-w-[1600px] mx-auto z-50 sticky top-0">
         <div class="flex items-center gap-6">
             <div>
                 <div class="font-headline-md text-headline-sm font-bold text-white flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary">security_update_good</span>
                     RECOVERY COPILOT
                 </div>
-                <div class="text-[11px] text-on-surface-variant font-medium uppercase tracking-wider">AI-powered recovery with deterministic controls</div>
+                <div class="text-[11px] text-on-surface-variant font-medium uppercase tracking-wider">AI-powered
+                    recovery with deterministic controls</div>
             </div>
         </div>
         <div class="flex items-center gap-4">
-            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+            <span
+                class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
                 <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 mr-1.5 animate-pulse"></span>
                 Demo Environment
             </span>
-            
+
             <!-- Operations & Settings Collapsible Menu -->
             <div class="relative group">
-                <button class="bg-surface-container-high hover:bg-surface-variant text-on-surface transition-colors font-label-md text-label-md px-3 py-2 rounded-lg border border-outline-variant flex items-center gap-1.5">
+                <button
+                    class="bg-surface-container-high hover:bg-surface-variant text-on-surface transition-colors font-label-md text-label-md px-3 py-2 rounded-lg border border-outline-variant flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-[18px]">settings</span>
                     <span>Operations</span>
                     <span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
                 </button>
-                <div class="absolute right-0 top-full mt-1.5 w-72 bg-surface-container-high border border-outline-variant rounded-lg shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 p-4 flex flex-col gap-4">
+                <div
+                    class="absolute right-0 top-full mt-1.5 w-72 bg-surface-container-high border border-outline-variant rounded-lg shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 p-4 flex flex-col gap-4">
                     <div>
                         <label class="font-label-md text-label-md text-on-surface-variant flex justify-between mb-1">
                             <span>Confidence Threshold</span>
                             <span id="threshold-val" class="text-primary font-bold">0.70</span>
                         </label>
-                        <input id="slider-threshold" type="range" min="0.3" max="0.9" step="0.05" value="0.70" class="w-full h-1 bg-surface-variant rounded-lg appearance-none cursor-pointer accent-primary" oninput="document.getElementById('threshold-val').innerText = parseFloat(this.value).toFixed(2)">
+                        <input id="slider-threshold" type="range" min="0.3" max="0.9" step="0.05" value="0.70"
+                            class="w-full h-1 bg-surface-variant rounded-lg appearance-none cursor-pointer accent-primary"
+                            oninput="document.getElementById('threshold-val').innerText = parseFloat(this.value).toFixed(2)">
                     </div>
-                    
+
                     <div class="border-t border-outline-variant pt-3">
-                        <label class="font-label-md text-label-md text-on-surface-variant mb-2 block">Diagnosis Mode</label>
+                        <label class="font-label-md text-label-md text-on-surface-variant mb-2 block">Diagnosis
+                            Mode</label>
                         <div class="flex gap-2">
-                            <button id="btn-mode-llm" onclick="updateMode('llm')" class="flex-1 py-1.5 rounded font-label-sm text-label-sm text-center border border-outline-variant bg-surface-variant text-on-surface hover:bg-surface-variant/80">LLM</button>
-                            <button id="btn-mode-det" onclick="updateMode('deterministic')" class="flex-1 py-1.5 rounded font-label-sm text-label-sm text-center border border-outline-variant bg-surface-variant text-on-surface hover:bg-surface-variant/80">Rules</button>
+                            <button id="btn-mode-llm" onclick="updateMode('llm')"
+                                class="flex-1 py-1.5 rounded font-label-sm text-label-sm text-center border border-outline-variant bg-surface-variant text-on-surface hover:bg-surface-variant/80">LLM</button>
+                            <button id="btn-mode-det" onclick="updateMode('deterministic')"
+                                class="flex-1 py-1.5 rounded font-label-sm text-label-sm text-center border border-outline-variant bg-surface-variant text-on-surface hover:bg-surface-variant/80">Rules</button>
                         </div>
                     </div>
 
                     <div class="border-t border-outline-variant pt-3 flex flex-col gap-2">
-                        <label class="font-label-md text-label-md text-on-surface-variant">Batch Operations</label>
-                        <select id="select-scenario" class="bg-surface-container border border-outline-variant text-on-surface hover:bg-surface-variant transition-colors rounded-lg px-2 py-1.5 font-label-md text-label-md focus:outline-none w-full">
-                            <option value="baseline">Baseline Mix</option>
-                            <option value="card_heavy">Card Heavy Mix</option>
-                            <option value="infra_heavy">Infra Heavy Mix</option>
-                            <option value="ambiguous_heavy">Ambiguous Heavy Mix</option>
-                        </select>
-                        <button onclick="generateBatch()" class="w-full py-1.5 border border-outline-variant rounded-lg text-on-surface hover:bg-surface-variant transition-all font-label-md text-label-sm flex items-center justify-center gap-1">
-                            <span class="material-symbols-outlined text-[16px]">shuffle</span>
-                            <span>Generate 60 Txns</span>
-                        </button>
-                        <button onclick="runRecoveryBatch()" class="w-full py-1.5 bg-primary/20 hover:bg-primary/30 border border-primary/30 rounded-lg text-primary transition-all font-label-md text-label-sm flex items-center justify-center gap-1">
-                            <span class="material-symbols-outlined text-[16px]">play_arrow</span>
-                            <span>Run Recovery Pass</span>
-                        </button>
-                        <button onclick="runUntilResolved()" class="w-full py-1.5 bg-indigo-600/30 hover:bg-indigo-600/40 border border-indigo-500/30 rounded-lg text-indigo-300 transition-all font-label-md text-label-sm flex items-center justify-center gap-1">
-                            <span class="material-symbols-outlined text-[16px]">forward</span>
-                            <span>Resolve All</span>
-                        </button>
-                    </div>
-
-                    <div class="border-t border-outline-variant pt-3 flex flex-col gap-2">
-                        <label class="font-label-md text-label-md text-on-surface-variant">Data Tools</label>
-                        <button onclick="exportToCSV()" class="w-full py-1.5 bg-surface-variant hover:bg-surface-variant/80 border border-outline-variant rounded-lg transition-colors font-label-md text-label-sm text-on-surface flex items-center justify-center gap-1.5">
+                        <label class="font-label-md text-label-md text-on-surface-variant">Data Tools(Batch Operations)
+                        </label>
+                        <button onclick="exportToCSV()"
+                            class="w-full py-1.5 bg-surface-variant hover:bg-surface-variant/80 border border-outline-variant rounded-lg transition-colors font-label-md text-label-sm text-on-surface flex items-center justify-center gap-1.5">
                             <span class="material-symbols-outlined text-[16px]">download</span>
                             <span>Export CSV</span>
                         </button>
@@ -197,59 +209,101 @@
 
     <!-- Main Container -->
     <main class="max-w-[1200px] mx-auto p-container-padding flex flex-col gap-8 pb-20">
-        
+
         <!-- Large visual statement / Hero message -->
-        <div class="text-center py-6 border-b border-outline-variant/20">
-            <h1 class="font-headline-lg text-4xl font-extrabold text-white tracking-tight mb-2">
+        <div class="text-center py-4 border-b border-outline-variant/20">
+            <h1 class="font-headline-lg text-3xl md:text-4xl font-extrabold text-white tracking-tight mb-2">
                 AI recommends. Policy authorizes. Executor acts.
             </h1>
-            <p class="text-on-surface-variant text-base max-w-2xl mx-auto">
-                Every recovery outcome becomes context for the next decision. Guaranteed financial rails for autonomous agents.
+            <p class="text-on-surface-variant text-sm md:text-base max-w-2xl mx-auto">
+                Every recovery outcome becomes context for the next decision. Guaranteed financial rails for autonomous
+                agents.
             </p>
         </div>
 
+        <!-- RECOVERY PIPELINE PROCESS STEPS RIBBON -->
+        <div
+            class="bg-surface-container-high border border-outline-variant/30 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2 text-xs font-medium">
+            <div class="flex items-center gap-1.5 text-error px-2 py-1 bg-error/10 border border-error/20 rounded-lg">
+                <span class="font-bold font-mono">1.</span> Payment Failure
+            </div>
+            <span class="text-on-surface-variant/40">➔</span>
+            <div
+                class="flex items-center gap-1.5 text-purple-300 px-2 py-1 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                <span class="font-bold font-mono">2.</span> AI Diagnosis
+            </div>
+            <span class="text-on-surface-variant/40">➔</span>
+            <div
+                class="flex items-center gap-1.5 text-success px-2 py-1 bg-success/10 border border-success/20 rounded-lg">
+                <span class="font-bold font-mono">3.</span> Policy Gate
+            </div>
+            <span class="text-on-surface-variant/40">➔</span>
+            <div
+                class="flex items-center gap-1.5 text-indigo-300 px-2 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">
+                <span class="font-bold font-mono">4.</span> Executor
+            </div>
+            <span class="text-on-surface-variant/40">➔</span>
+            <div class="flex items-center gap-1.5 text-white px-2 py-1 bg-white/10 border border-white/20 rounded-lg">
+                <span class="font-bold font-mono">5.</span> Outcome Logged
+            </div>
+        </div>
+
         <!-- DEMO RUNTIME STATE CARD / LOADER -->
-        <div id="service-unavailable-card" class="bg-error/10 border border-error/30 p-6 rounded-xl hidden text-center flex-col items-center justify-center gap-3">
+        <div id="service-unavailable-card"
+            class="bg-error/10 border border-error/30 p-6 rounded-xl hidden text-center flex-col items-center justify-center gap-3">
             <span class="material-symbols-outlined text-4xl text-error">cloud_off</span>
             <div>
                 <h3 class="font-headline-sm text-white font-bold">RECOVERY SERVICE UNAVAILABLE</h3>
                 <p class="text-on-surface-variant text-sm mt-1">Unable to process this recovery attempt.</p>
             </div>
-            <button onclick="window.location.reload()" class="px-4 py-2 bg-error/20 hover:bg-error/30 text-error rounded-lg font-medium text-sm transition-all border border-error/30">
+            <button onclick="window.location.reload()"
+                class="px-4 py-2 bg-error/20 hover:bg-error/30 text-error rounded-lg font-medium text-sm transition-all border border-error/30">
                 TRY AGAIN
             </button>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <!-- LEFT PANEL: The Story (Failure, Diagnosis, Next Best Action, Policy, Executor, Outcome) -->
+            <!-- LEFT PANEL: The Story (Failure, Diagnosis, Policy Gate, Executor, Outcome) -->
             <div class="lg:col-span-7 flex flex-col gap-6">
-                
+
                 <!-- SECTION 1 — PAYMENT FAILURE -->
-                <div class="bg-surface-container-high border border-outline-variant rounded-xl p-6 relative overflow-hidden">
-                    <div class="absolute top-0 right-0 w-24 h-24 bg-error/10 rounded-full blur-2xl pointer-events-none"></div>
+                <div
+                    class="bg-surface-container-high border border-outline-variant rounded-xl p-6 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-error/10 rounded-full blur-2xl pointer-events-none">
+                    </div>
                     <div class="flex justify-between items-start mb-4">
-                        <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-bold bg-error/15 text-error border border-error/30 uppercase tracking-wider">
-                            <span class="w-1.5 h-1.5 rounded-full bg-error mr-1.5"></span>
-                            Payment Failed
-                        </span>
+                        <div class="flex items-center gap-2">
+                            <span
+                                class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-error/20 text-error border border-error/30">STEP
+                                1</span>
+                            <span
+                                class="inline-flex items-center px-2.5 py-1 rounded text-xs font-bold bg-error/15 text-error border border-error/30 uppercase tracking-wider">
+                                <span class="w-1.5 h-1.5 rounded-full bg-error mr-1.5"></span>
+                                Payment Failed
+                            </span>
+                        </div>
                         <div class="text-right">
                             <span class="text-xs text-on-surface-variant font-mono">Reference</span>
-                            <div class="font-mono text-sm text-white font-semibold">demo_pay_ref_4500</div>
+                            <div id="demo-txn-ref" class="font-mono text-sm text-white font-semibold">demo_pay_ref_4500
+                            </div>
                         </div>
                     </div>
-                    
+
                     <div class="flex items-baseline gap-2 mb-3">
-                        <span class="text-4xl font-extrabold text-white font-body-lg">₹4,500</span>
-                        <span class="text-on-surface-variant text-sm">Via Card</span>
+                        <span id="demo-txn-amount" class="text-4xl font-extrabold text-white font-body-lg">₹4,500</span>
+                        <span id="demo-txn-bank" class="text-on-surface-variant text-sm">HDFC Bank · Via Card</span>
                     </div>
 
                     <div class="border-t border-outline-variant/20 pt-4 mt-2">
                         <div class="flex gap-2.5 items-start">
                             <span class="material-symbols-outlined text-error mt-0.5">report_problem</span>
                             <div>
-                                <h4 class="font-semibold text-white text-sm">Bank server unavailable</h4>
-                                <p class="text-on-surface-variant text-xs mt-1 leading-relaxed">
-                                    The payment could not be completed because the bank/infrastructure layer was unavailable.
+                                <h4 id="demo-txn-failure-name" class="font-semibold text-white text-sm">Bank server
+                                    unavailable</h4>
+                                <p id="demo-txn-failure-desc"
+                                    class="text-on-surface-variant text-xs mt-1 leading-relaxed">
+                                    The payment could not be completed because the bank/infrastructure layer was
+                                    unavailable.
                                 </p>
                             </div>
                         </div>
@@ -257,42 +311,102 @@
                 </div>
 
                 <!-- SECTION 2 — AI DIAGNOSIS -->
-                <div class="bg-surface-container-high border border-outline-variant rounded-xl p-6 relative overflow-hidden">
+                <div
+                    class="bg-surface-container-high border border-outline-variant rounded-xl p-6 relative overflow-hidden">
                     <div class="flex justify-between items-center mb-4 border-b border-outline-variant/10 pb-3">
-                        <h3 class="font-label-md text-label-md font-bold text-white tracking-widest uppercase">AI Diagnosis</h3>
+                        <div class="flex items-center gap-2">
+                            <span
+                                class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">STEP
+                                2</span>
+                            <h3
+                                class="font-label-md text-label-md font-bold text-white tracking-widest uppercase flex items-center">
+                                AI Diagnosis
+                                <button type="button" onclick="showInfoTooltip(event, 'AI Diagnosis')"
+                                    class="text-on-surface-variant/70 hover:text-primary transition-colors ml-1.5"
+                                    title="Learn more">
+                                    <span class="material-symbols-outlined text-[16px]">info</span>
+                                </button>
+                            </h3>
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-3 gap-4">
                         <div>
-                            <span class="text-xs text-on-surface-variant block uppercase tracking-wider font-medium">Diagnosis</span>
-                            <span class="text-sm font-bold text-white mt-1 block" id="ai-diagnosis-val">Transient infrastructure failure</span>
+                            <span
+                                class="text-xs text-on-surface-variant uppercase tracking-wider font-medium flex items-center">
+                                Diagnosis
+                            </span>
+                            <span class="text-sm font-bold text-white mt-1 block" id="ai-diagnosis-val">Transient
+                                infrastructure failure</span>
                         </div>
                         <div>
-                            <span class="text-xs text-on-surface-variant block uppercase tracking-wider font-medium">Source</span>
-                            <span class="inline-flex items-center mt-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-600/20 text-purple-400 border border-purple-500/30" id="diagnosis-source-badge">AI</span>
+                            <span
+                                class="text-xs text-on-surface-variant uppercase tracking-wider font-medium flex items-center">
+                                Source
+                                <button type="button" onclick="showInfoTooltip(event, 'Source')"
+                                    class="text-on-surface-variant/70 hover:text-primary transition-colors ml-1"
+                                    title="Learn more">
+                                    <span class="material-symbols-outlined text-[14px]">info</span>
+                                </button>
+                            </span>
+                            <span
+                                class="inline-flex items-center mt-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-600/20 text-purple-400 border border-purple-500/30"
+                                id="diagnosis-source-badge">AI</span>
                         </div>
                         <div>
-                            <span class="text-xs text-on-surface-variant block uppercase tracking-wider font-medium">Confidence</span>
-                            <span class="text-lg font-bold text-purple-400 mt-0.5 block" id="ai-confidence-val">95%</span>
+                            <span
+                                class="text-xs text-on-surface-variant uppercase tracking-wider font-medium flex items-center">
+                                Confidence
+                                <button type="button" onclick="showInfoTooltip(event, 'Confidence')"
+                                    class="text-on-surface-variant/70 hover:text-primary transition-colors ml-1"
+                                    title="Learn more">
+                                    <span class="material-symbols-outlined text-[14px]">info</span>
+                                </button>
+                            </span>
+                            <span class="text-lg font-bold text-purple-400 mt-0.5 block"
+                                id="ai-confidence-val">95%</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- SECTION 5 — POLICY GATE -->
                 <div class="bg-surface-container-high border border-outline-variant rounded-xl p-6">
-                    <div class="flex justify-between items-center mb-4 border-b border-outline-variant/10 pb-3">
-                        <h3 class="font-label-md text-label-md font-bold text-white tracking-widest uppercase">Policy Gate</h3>
-                        <span id="policy-gate-status" class="inline-flex items-center px-3 py-1 rounded text-xs font-extrabold uppercase tracking-wider">
-                            APPROVED
-                        </span>
+                    <div class="flex justify-between items-center mb-3 border-b border-outline-variant/10 pb-3">
+                        <div class="flex items-center gap-2">
+                            <span
+                                class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-success/20 text-success border border-success/30">STEP
+                                3</span>
+                            <h3
+                                class="font-label-md text-label-md font-bold text-white tracking-widest uppercase flex items-center">
+                                Policy Gate
+                                <button type="button" onclick="showInfoTooltip(event, 'Policy Gate')"
+                                    class="text-on-surface-variant/70 hover:text-primary transition-colors ml-1.5"
+                                    title="Learn more">
+                                    <span class="material-symbols-outlined text-[16px]">info</span>
+                                </button>
+                            </h3>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span id="policy-gate-status"
+                                class="inline-flex items-center px-3 py-1 rounded text-xs font-extrabold uppercase tracking-wider">
+                                APPROVED
+                            </span>
+                            <button id="btn-toggle-policy-rules" onclick="togglePolicyRules()"
+                                class="bg-surface-variant hover:bg-surface-variant/80 border border-outline-variant px-2.5 py-1 rounded-lg text-xs font-medium text-indigo-300 flex items-center gap-1 transition-colors">
+                                <span id="policy-rules-toggle-text">View Rules</span>
+                                <span id="policy-rules-chevron"
+                                    class="material-symbols-outlined text-[16px] transition-transform duration-200">expand_more</span>
+                            </button>
+                        </div>
                     </div>
 
-                    <div class="text-xs text-on-surface-variant mb-4 font-medium italic">
+                    <div class="text-xs text-on-surface-variant mb-3 font-medium italic">
                         AI recommends, but policy decides. Guaranteed deterministic rules.
                     </div>
 
-                    <!-- Simple human-readable checks -->
-                    <div id="policy-rules-list" class="flex flex-col gap-2.5 bg-background/50 p-4 rounded-lg border border-outline-variant/15">
+                    <!-- Simple human-readable checks (COLLAPSED BY DEFAULT) -->
+                    <div id="policy-rules-list"
+                        class="hidden flex flex-col gap-2.5 bg-background/50 p-4 rounded-lg border border-outline-variant/15 transition-all">
                         <!-- Populated dynamically -->
                     </div>
                 </div>
@@ -300,22 +414,39 @@
                 <!-- SECTION 6 — EXECUTION -->
                 <div class="bg-surface-container-high border border-outline-variant rounded-xl p-6">
                     <div class="flex justify-between items-center mb-4 border-b border-outline-variant/10 pb-3">
-                        <h3 class="font-label-md text-label-md font-bold text-white tracking-widest uppercase">Executor</h3>
+                        <div class="flex items-center gap-2">
+                            <span
+                                class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">STEP
+                                4</span>
+                            <h3
+                                class="font-label-md text-label-md font-bold text-white tracking-widest uppercase flex items-center">
+                                Executor
+                                <button type="button" onclick="showInfoTooltip(event, 'Executor')"
+                                    class="text-on-surface-variant/70 hover:text-primary transition-colors ml-1.5"
+                                    title="Learn more">
+                                    <span class="material-symbols-outlined text-[16px]">info</span>
+                                </button>
+                            </h3>
+                        </div>
                         <span class="text-xs text-on-surface-variant font-mono">Guaranteed Rail</span>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4 mb-4">
                         <div>
-                            <span class="text-xs text-on-surface-variant block uppercase tracking-wider">Approved Action</span>
-                            <span class="text-sm font-semibold text-white font-mono mt-1 block" id="executor-action-val">-</span>
+                            <span class="text-xs text-on-surface-variant block uppercase tracking-wider">Approved
+                                Action</span>
+                            <span class="text-sm font-semibold text-white font-mono mt-1 block"
+                                id="executor-action-val">-</span>
                         </div>
                         <div>
-                            <span class="text-xs text-on-surface-variant block uppercase tracking-wider">Execution Outcome</span>
+                            <span class="text-xs text-on-surface-variant block uppercase tracking-wider">Execution
+                                Outcome</span>
                             <span class="text-sm font-semibold text-white mt-1 block" id="executor-result-val">-</span>
                         </div>
                     </div>
 
-                    <div id="executor-reason-box" class="hidden mb-3 p-3 rounded-lg bg-error/10 border border-error/20 text-xs text-error flex items-start gap-2">
+                    <div id="executor-reason-box"
+                        class="hidden mb-3 p-3 rounded-lg bg-error/10 border border-error/20 text-xs text-error flex items-start gap-2">
                         <span class="material-symbols-outlined text-sm mt-0.5">info</span>
                         <div>
                             <span class="font-bold">Policy Block:</span>
@@ -323,30 +454,99 @@
                         </div>
                     </div>
 
-                    <div id="executor-default-footer" class="border-t border-outline-variant/10 pt-3 flex items-center gap-2 text-xs text-on-surface-variant">
+                    <div id="executor-default-footer"
+                        class="border-t border-outline-variant/10 pt-3 flex items-center gap-2 text-xs text-on-surface-variant">
                         <span class="material-symbols-outlined text-[16px] text-primary">gavel</span>
                         <span>Only the policy-approved action can reach the executor.</span>
                     </div>
                 </div>
 
                 <!-- SECTION 7 — FINAL OUTCOME -->
-                <div id="final-outcome-card" class="bg-surface-container-high border border-outline-variant rounded-xl p-6 transition-all duration-300">
-                    <!-- Populated dynamically -->
+                <div class="relative">
+                    <div class="absolute -top-3 left-4 z-10">
+                        <span
+                            class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-white/20 text-white border border-white/30 backdrop-blur-md">STEP
+                            5</span>
+                    </div>
+                    <div id="final-outcome-card"
+                        class="bg-surface-container-high border border-outline-variant rounded-xl p-6 transition-all duration-300">
+                        <!-- Populated dynamically -->
+                    </div>
                 </div>
 
             </div>
 
-            <!-- RIGHT PANEL: Timeline, Next Best Action, Benchmark, Audit Drawer, Demo Controls -->
+            <!-- RIGHT PANEL: Demo Selector, Next Best Action, Timeline, Benchmark -->
             <div class="lg:col-span-5 flex flex-col gap-6">
-                
-                <!-- DEMO CONTROLS -->
-                <div class="bg-surface-container-high border border-outline-variant rounded-xl p-6 flex flex-col gap-3">
-                    <h3 class="font-label-md text-label-md font-bold text-white tracking-widest uppercase mb-1">Demo Pipeline</h3>
-                    <div class="flex gap-3">
-                        <button onclick="resetDemoTxn()" class="flex-1 py-2.5 border border-outline-variant hover:bg-surface-variant text-on-surface font-label-md text-label-md rounded-lg transition-all text-center">
+
+                <!-- DEMO SCENARIO SELECTOR & CONTROLS -->
+                <div class="bg-surface-container-high border border-outline-variant rounded-xl p-5 flex flex-col gap-4">
+                    <div class="flex justify-between items-center border-b border-outline-variant/10 pb-2.5">
+                        <h3 class="font-label-md text-label-md font-bold text-white tracking-widest uppercase">Select
+                            Demo Transaction</h3>
+                        <span class="text-[10px] font-mono text-on-surface-variant uppercase">Interactive
+                            Scenarios</span>
+                    </div>
+
+                    <!-- Demo Transaction Chips -->
+                    <div class="flex flex-col gap-2">
+                        <div class="grid grid-cols-1 gap-2">
+                            <button type="button" onclick="selectDemoTxn('demo_pay_ref_4500')"
+                                id="chip-demo_pay_ref_4500"
+                                class="demo-chip text-left px-3 py-2 rounded-lg border text-xs transition-all flex items-center justify-between bg-indigo-600/20 border-indigo-500/40 text-white font-medium">
+                                <span class="flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+                                    <span>Bank Server Down</span>
+                                </span>
+                                <span class="font-mono text-[11px] text-indigo-300">₹4,500 · HDFC</span>
+                            </button>
+                            <button type="button" onclick="selectDemoTxn('demo_pay_ref_1200')"
+                                id="chip-demo_pay_ref_1200"
+                                class="demo-chip text-left px-3 py-2 rounded-lg border border-outline-variant/30 text-xs transition-all flex items-center justify-between bg-background/50 hover:bg-surface-variant text-on-surface-variant">
+                                <span class="flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full bg-outline"></span>
+                                    <span>Expired Card</span>
+                                </span>
+                                <span class="font-mono text-[11px]">₹1,200 · ICICI</span>
+                            </button>
+                            <button type="button" onclick="selectDemoTxn('demo_pay_ref_7800')"
+                                id="chip-demo_pay_ref_7800"
+                                class="demo-chip text-left px-3 py-2 rounded-lg border border-outline-variant/30 text-xs transition-all flex items-center justify-between bg-background/50 hover:bg-surface-variant text-on-surface-variant">
+                                <span class="flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full bg-outline"></span>
+                                    <span>Insufficient Funds</span>
+                                </span>
+                                <span class="font-mono text-[11px]">₹7,800 · SBI</span>
+                            </button>
+                            <button type="button" onclick="selectDemoTxn('demo_pay_ref_3300')"
+                                id="chip-demo_pay_ref_3300"
+                                class="demo-chip text-left px-3 py-2 rounded-lg border border-outline-variant/30 text-xs transition-all flex items-center justify-between bg-background/50 hover:bg-surface-variant text-on-surface-variant">
+                                <span class="flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full bg-outline"></span>
+                                    <span>Network Timeout</span>
+                                </span>
+                                <span class="font-mono text-[11px]">₹3,300 · Axis</span>
+                            </button>
+                            <button type="button" onclick="selectDemoTxn('demo_pay_ref_5000')"
+                                id="chip-demo_pay_ref_5000"
+                                class="demo-chip text-left px-3 py-2 rounded-lg border border-outline-variant/30 text-xs transition-all flex items-center justify-between bg-background/50 hover:bg-surface-variant text-on-surface-variant">
+                                <span class="flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full bg-outline"></span>
+                                    <span>Card Declined</span>
+                                </span>
+                                <span class="font-mono text-[11px]">₹5,000 · Kotak</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Pipeline Run Controls -->
+                    <div class="flex gap-3 border-t border-outline-variant/10 pt-3">
+                        <button onclick="resetDemoTxn()"
+                            class="flex-1 py-2.5 border border-outline-variant hover:bg-surface-variant text-on-surface font-label-md text-label-md rounded-lg transition-all text-center">
                             RESET DEMO
                         </button>
-                        <button id="btn-demo-step" onclick="runDemoTxnStep()" class="flex-[1.5] bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg font-label-md text-label-md transition-all shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2">
+                        <button id="btn-demo-step" onclick="runDemoTxnStep()"
+                            class="flex-[1.5] bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg font-label-md text-label-md transition-all shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2">
                             <span class="material-symbols-outlined text-[18px]">play_arrow</span>
                             <span>RUN NEXT RECOVERY</span>
                         </button>
@@ -354,24 +554,54 @@
                 </div>
 
                 <!-- SECTION 4 — NEXT BEST ACTION -->
-                <div class="bg-gradient-to-br from-indigo-950/40 to-surface-container-high border border-indigo-500/20 rounded-xl p-6">
+                <div
+                    class="bg-gradient-to-br from-indigo-950/40 to-surface-container-high border border-indigo-500/20 rounded-xl p-6">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-label-md text-label-md font-bold text-indigo-300 tracking-widest uppercase">Next Best Action</h3>
+                        <h3
+                            class="font-label-md text-label-md font-bold text-indigo-300 tracking-widest uppercase flex items-center">
+                            Next Best Action
+                            <button type="button" onclick="showInfoTooltip(event, 'Next Best Action')"
+                                class="text-indigo-400/80 hover:text-indigo-300 transition-colors ml-1.5"
+                                title="Learn more">
+                                <span class="material-symbols-outlined text-[16px]">info</span>
+                            </button>
+                        </h3>
                         <span class="material-symbols-outlined text-indigo-400">trending_up</span>
                     </div>
 
                     <div class="mb-4">
-                        <span class="text-xs text-on-surface-variant block uppercase tracking-wider">Recommended Pipeline Route</span>
+                        <span class="text-xs text-on-surface-variant uppercase tracking-wider flex items-center">
+                            Recommended Pipeline Route
+                            <button type="button" onclick="showInfoTooltip(event, 'Recommended Pipeline Route')"
+                                class="text-on-surface-variant/70 hover:text-primary transition-colors ml-1"
+                                title="Learn more">
+                                <span class="material-symbols-outlined text-[14px]">info</span>
+                            </button>
+                        </span>
                         <h4 class="text-base font-bold text-white mt-1 font-mono" id="next-action-val">-</h4>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4 border-t border-indigo-500/10 pt-3 mb-3">
                         <div>
-                            <span class="text-xs text-on-surface-variant block uppercase tracking-wider">Predictive Success</span>
+                            <span class="text-xs text-on-surface-variant uppercase tracking-wider flex items-center">
+                                Predictive Success
+                                <button type="button" onclick="showInfoTooltip(event, 'Predictive Success')"
+                                    class="text-on-surface-variant/70 hover:text-primary transition-colors ml-1"
+                                    title="Learn more">
+                                    <span class="material-symbols-outlined text-[14px]">info</span>
+                                </button>
+                            </span>
                             <span class="text-sm font-semibold text-white mt-0.5 block" id="next-prob-val">-</span>
                         </div>
                         <div>
-                            <span class="text-xs text-on-surface-variant block uppercase tracking-wider">Expected Value</span>
+                            <span class="text-xs text-on-surface-variant uppercase tracking-wider flex items-center">
+                                Expected Value
+                                <button type="button" onclick="showInfoTooltip(event, 'Expected Value')"
+                                    class="text-on-surface-variant/70 hover:text-primary transition-colors ml-1"
+                                    title="Learn more">
+                                    <span class="material-symbols-outlined text-[14px]">info</span>
+                                </button>
+                            </span>
                             <span class="text-sm font-semibold text-indigo-400 mt-0.5 block" id="next-ev-val">-</span>
                         </div>
                     </div>
@@ -383,8 +613,16 @@
 
                 <!-- SECTION 3 — RECOVERY TIMELINE -->
                 <div class="bg-surface-container-high border border-outline-variant rounded-xl p-6">
-                    <h3 class="font-label-md text-label-md font-bold text-white tracking-widest uppercase mb-4">Recovery Timeline</h3>
-                    
+                    <h3
+                        class="font-label-md text-label-md font-bold text-white tracking-widest uppercase mb-4 flex items-center">
+                        Recovery Timeline
+                        <button type="button" onclick="showInfoTooltip(event, 'Recovery Timeline')"
+                            class="text-on-surface-variant/70 hover:text-primary transition-colors ml-1.5"
+                            title="Learn more">
+                            <span class="material-symbols-outlined text-[16px]">info</span>
+                        </button>
+                    </h3>
+
                     <div id="timeline-nodes-container" class="flex flex-col relative">
                         <!-- Timelines nodes populated dynamically -->
                     </div>
@@ -392,12 +630,30 @@
 
                 <!-- SECTION 8 — BENCHMARK -->
                 <div class="bg-surface-container-high border border-outline-variant rounded-xl p-6">
-                    <div class="mb-4">
-                        <h3 class="font-label-md text-label-md font-bold text-white tracking-widest uppercase">Why This Approach?</h3>
-                        <span class="text-[10px] text-on-surface-variant font-mono uppercase tracking-wider block mt-0.5">Controlled Synthetic Benchmark · 100 Transactions</span>
+                    <div class="flex items-center justify-between border-b border-outline-variant/10 pb-3">
+                        <div>
+                            <h3
+                                class="font-label-md text-label-md font-bold text-white tracking-widest uppercase flex items-center">
+                                Why This Approach?
+                                <button type="button" onclick="showInfoTooltip(event, 'Benchmark')"
+                                    class="text-on-surface-variant/70 hover:text-primary transition-colors ml-1.5"
+                                    title="Learn more">
+                                    <span class="material-symbols-outlined text-[16px]">info</span>
+                                </button>
+                            </h3>
+                            <span
+                                class="text-[10px] text-on-surface-variant font-mono uppercase tracking-wider block mt-0.5">Controlled
+                                Synthetic Benchmark · 100 Transactions</span>
+                        </div>
+                        <button id="btn-toggle-benchmark" onclick="toggleBenchmarkCard()"
+                            class="bg-surface-variant hover:bg-surface-variant/80 border border-outline-variant px-2.5 py-1.5 rounded-lg text-xs font-medium text-indigo-300 flex items-center gap-1 transition-colors">
+                            <span id="benchmark-toggle-text">View Benchmark</span>
+                            <span id="benchmark-chevron"
+                                class="material-symbols-outlined text-[16px] transition-transform duration-200">expand_more</span>
+                        </button>
                     </div>
 
-                    <div class="flex flex-col gap-3">
+                    <div id="benchmark-card-body" class="hidden flex flex-col gap-3 mt-4 transition-all">
                         <div class="bg-background/40 border border-outline-variant/10 rounded-lg p-3">
                             <div class="flex justify-between items-center text-xs font-semibold text-on-surface mb-2">
                                 <span>Recovery Rates</span>
@@ -412,7 +668,8 @@
                                     <span class="text-on-surface-variant">Rule-Based Recovery</span>
                                     <span class="font-mono text-white">86%</span>
                                 </div>
-                                <div class="flex justify-between items-center text-[11px] bg-indigo-500/10 border border-indigo-500/20 p-1 px-2 rounded">
+                                <div
+                                    class="flex justify-between items-center text-[11px] bg-indigo-500/10 border border-indigo-500/20 p-1 px-2 rounded">
                                     <span class="text-indigo-300 font-bold">AI-Assisted Recovery Copilot</span>
                                     <span class="font-mono text-indigo-300 font-bold">95%</span>
                                 </div>
@@ -430,7 +687,8 @@
                                     <span class="text-on-surface-variant">Rule-Based</span>
                                     <span class="font-mono text-white">₹470,568</span>
                                 </div>
-                                <div class="flex justify-between items-center text-[11px] bg-indigo-500/10 border border-indigo-500/20 p-1 px-2 rounded">
+                                <div
+                                    class="flex justify-between items-center text-[11px] bg-indigo-500/10 border border-indigo-500/20 p-1 px-2 rounded">
                                     <span class="text-indigo-300 font-bold">AI-Assisted Copilot</span>
                                     <span class="font-mono text-indigo-300 font-bold">₹516,545</span>
                                 </div>
@@ -442,16 +700,130 @@
             </div>
         </div>
 
+        <!-- BATCH OPERATIONS DASHBOARD & LIVE ANALYTICS -->
+        <div class="bg-surface-container-high border border-outline-variant rounded-xl overflow-hidden mt-4">
+            <div
+                class="p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-outline-variant/10">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary text-2xl">layers</span>
+                        <h3 class="font-headline-sm text-lg font-bold text-white uppercase tracking-wider">Batch
+                            Operations & Analytics</h3>
+                        <button type="button" onclick="showInfoTooltip(event, 'Batch Operations')"
+                            class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-outline-variant/30 hover:bg-outline-variant/50 text-on-surface-variant hover:text-on-surface transition-colors focus:outline-none focus:ring-2 focus:ring-primary">
+                            <span class="material-symbols-outlined text-xs">info</span>
+                        </button>
+                    </div>
+                    <p class="text-xs text-on-surface-variant mt-1">Generate and simulate recovery passes across 60+
+                        synthetic transactions at scale.</p>
+                </div>
+
+                <button id="btn-toggle-batch-panel" onclick="toggleBatchPanel()"
+                    class="bg-surface-variant hover:bg-surface-variant/80 border border-outline-variant px-3 py-2 rounded-lg text-xs font-semibold text-indigo-300 flex items-center gap-1.5 transition-colors">
+                    <span id="batch-panel-toggle-text">View Batch Operations</span>
+                    <span id="batch-panel-chevron"
+                        class="material-symbols-outlined text-[18px] transition-transform duration-200">expand_more</span>
+                </button>
+            </div>
+
+            <div id="batch-panel-body"
+                class="hidden p-6 bg-background/30 flex flex-col gap-6 border-t border-outline-variant/10 transition-all">
+                <!-- Dashboard Batch Controls -->
+                <div
+                    class="flex flex-wrap items-center justify-between gap-3 bg-surface-container/60 p-3.5 rounded-lg border border-outline-variant/20">
+                    <span class="text-xs font-semibold text-white uppercase tracking-wider">Batch Execution
+                        Controls</span>
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <select id="dashboard-select-scenario"
+                            class="bg-surface-container border border-outline-variant text-on-surface hover:bg-surface-variant rounded-lg px-3 py-2 text-xs font-medium focus:outline-none">
+                            <option value="baseline">Baseline Mix</option>
+                            <option value="card_heavy">Card Heavy Mix</option>
+                            <option value="infra_heavy">Infra Heavy Mix</option>
+                            <option value="ambiguous_heavy">Ambiguous Heavy Mix</option>
+                        </select>
+                        <button onclick="generateBatchFromDashboard()"
+                            class="px-3 py-2 bg-surface-variant hover:bg-surface-variant/80 border border-outline-variant text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all">
+                            <span class="material-symbols-outlined text-[16px]">shuffle</span>
+                            <span>Generate 60 Txns</span>
+                        </button>
+                        <button onclick="runRecoveryBatchFromDashboard()"
+                            class="px-3 py-2 bg-primary/20 hover:bg-primary/30 border border-primary/30 text-primary rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all">
+                            <span class="material-symbols-outlined text-[16px]">play_arrow</span>
+                            <span>Run Batch Pass</span>
+                        </button>
+                        <button onclick="runUntilResolvedFromDashboard()"
+                            class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all shadow-lg shadow-indigo-600/20">
+                            <span class="material-symbols-outlined text-[16px]">forward</span>
+                            <span>Resolve All</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Batch Summary Stats Cards -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-background/40 border border-outline-variant/15 rounded-lg p-3.5 flex flex-col gap-1">
+                        <span class="text-[11px] text-on-surface-variant font-medium uppercase tracking-wider">Total
+                            Transactions</span>
+                        <span id="batch-stat-total" class="text-2xl font-extrabold text-white font-mono">0</span>
+                    </div>
+                    <div class="bg-background/40 border border-outline-variant/15 rounded-lg p-3.5 flex flex-col gap-1">
+                        <span
+                            class="text-[11px] text-on-surface-variant font-medium uppercase tracking-wider">Recovered</span>
+                        <span id="batch-stat-recovered" class="text-2xl font-extrabold text-success font-mono">0
+                            (0%)</span>
+                    </div>
+                    <div class="bg-background/40 border border-outline-variant/15 rounded-lg p-3.5 flex flex-col gap-1">
+                        <span class="text-[11px] text-on-surface-variant font-medium uppercase tracking-wider">Failed /
+                            Open</span>
+                        <span id="batch-stat-failed" class="text-2xl font-extrabold text-error font-mono">0 (0%)</span>
+                    </div>
+                    <div class="bg-background/40 border border-outline-variant/15 rounded-lg p-3.5 flex flex-col gap-1">
+                        <span class="text-[11px] text-on-surface-variant font-medium uppercase tracking-wider">Total Net
+                            Recovery</span>
+                        <span id="batch-stat-net" class="text-2xl font-extrabold text-indigo-300 font-mono">₹0</span>
+                    </div>
+                </div>
+
+                <!-- Batch Table -->
+                <div class="overflow-x-auto border border-outline-variant/20 rounded-lg max-h-72">
+                    <table class="w-full text-left text-xs text-on-surface-variant">
+                        <thead
+                            class="bg-surface-variant/60 text-on-surface uppercase text-[10px] font-mono tracking-wider border-b border-outline-variant/20 sticky top-0 backdrop-blur-md">
+                            <tr>
+                                <th class="p-3">Reference / ID</th>
+                                <th class="p-3">Customer ID</th>
+                                <th class="p-3">Amount</th>
+                                <th class="p-3">Failure Reason</th>
+                                <th class="p-3">Status</th>
+                                <th class="p-3">Attempts</th>
+                            </tr>
+                        </thead>
+                        <tbody id="batch-transactions-tbody" class="divide-y divide-outline-variant/10">
+                            <tr>
+                                <td colspan="6" class="p-6 text-center text-on-surface-variant">
+                                    Loading batch transactions...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <!-- SECTION 9 — TECHNICAL AUDIT -->
-        <div class="bg-surface-container-high border border-outline-variant rounded-xl overflow-hidden">
-            <button onclick="toggleAuditDrawer()" class="w-full p-4 flex justify-between items-center font-label-md text-label-md font-bold text-white uppercase tracking-wider hover:bg-surface-variant transition-colors border-b border-outline-variant/20">
+        <div class="bg-surface-container-high border border-outline-variant rounded-xl overflow-hidden mt-2">
+            <button onclick="toggleAuditDrawer()"
+                class="w-full p-4 flex justify-between items-center font-label-md text-label-md font-bold text-white uppercase tracking-wider hover:bg-surface-variant transition-colors border-b border-outline-variant/20">
                 <span>View Technical Audit</span>
-                <span id="audit-drawer-chevron" class="material-symbols-outlined transition-transform duration-200">expand_more</span>
+                <span id="audit-drawer-chevron"
+                    class="material-symbols-outlined transition-transform duration-200">expand_more</span>
             </button>
-            
-            <div id="technical-audit-drawer" class="hidden p-6 bg-background/50 border-t border-outline-variant/10 flex flex-col gap-6">
+
+            <div id="technical-audit-drawer"
+                class="hidden p-6 bg-background/50 border-t border-outline-variant/10 flex flex-col gap-6">
                 <!-- Programmatically populated with structured cards -->
-                <div class="text-center text-on-surface-variant text-sm py-4">No attempts run yet. Click RUN NEXT RECOVERY to see details.</div>
+                <div class="text-center text-on-surface-variant text-sm py-4">No attempts run yet. Click RUN NEXT
+                    RECOVERY to see details.</div>
             </div>
         </div>
 
@@ -459,7 +831,95 @@
 
     <script>
         const API_BASE = window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : '';
-        
+
+        // EXACT EXPLANATIONS PROVIDED BY USER
+        const TOOLTIP_TEXTS = {
+            "AI Diagnosis": "The AI classifies why the payment failed (for example, a bank/infrastructure problem or a card issue) so the system can choose an appropriate recovery path.",
+            "Confidence": "How confident the classifier is in its diagnosis. If confidence is below the configured threshold, automated recovery is stopped and the transaction can be escalated rather than proceeding automatically.",
+            "Source": "Shows whether the diagnosis came from an LLM or from the deterministic classifier used when the AI providers are unavailable.",
+            "Policy Gate": "A deterministic rule engine that checks the AI's recommendation before execution. It can approve the action, override it, block it, or escalate the transaction.",
+            "Next Best Action": "The recovery action the system considers most suitable for the next attempt, based on the predicted outcome and recovery value.",
+            "Recommended Pipeline Route": "The specific action recommended for the transaction, such as retrying the payment, requesting a new payment method, or escalating to a human.",
+            "Predictive Success": "The estimated probability that the recommended action will successfully recover the payment.",
+            "Expected Value": "The estimated net recovery from an action: transaction amount × predicted success probability − action cost.",
+            "Executor": "The component that performs the recovery action after it has been approved by the Policy Gate.",
+            "Recovery Timeline": "A chronological record of the recovery attempts made for the transaction, including recommendations, policy decisions, executions, and outcomes.",
+            "Attempt": "One recovery cycle in which the system evaluates the transaction, selects/recommends an action, applies policy, executes an approved action, and records the outcome.",
+            "Benchmark": "A controlled synthetic test comparing Recovery Copilot with alternative recovery strategies using the same test workload.",
+            "Batch Operations": "Run recovery operations across many transactions at once. Generate a synthetic batch, run a single pass, or resolve every transaction until no attempts remain.", "View Technical Audit": "View technical audit trail details for nerds."
+        };
+
+        let _activeTooltipBtn = null;
+
+        function showInfoTooltip(event, termKey) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+
+            const popover = document.getElementById('info-tooltip-popover');
+            const titleEl = document.getElementById('info-tooltip-title');
+            const bodyEl = document.getElementById('info-tooltip-body');
+
+            if (!popover || !titleEl || !bodyEl) {
+                console.warn('Tooltip elements not found');
+                return;
+            }
+
+            // Find matching key (case-insensitive, partial match fallback)
+            let matchedKey = Object.keys(TOOLTIP_TEXTS).find(k => k.toLowerCase() === termKey.toLowerCase());
+            if (!matchedKey) {
+                matchedKey = Object.keys(TOOLTIP_TEXTS).find(k => k.toLowerCase().includes(termKey.toLowerCase()) || termKey.toLowerCase().includes(k.toLowerCase()));
+            }
+
+            const explanation = matchedKey ? TOOLTIP_TEXTS[matchedKey] : `No explanation available for "${termKey}".`;
+
+            titleEl.textContent = termKey;
+            bodyEl.textContent = explanation;
+
+            const btn = event ? event.currentTarget : null;
+            _activeTooltipBtn = btn;
+
+            if (btn) {
+                const rect = btn.getBoundingClientRect();
+                const popoverWidth = 320;
+                let left = rect.left;
+                let top = rect.bottom + 8;
+
+                if (left + popoverWidth > window.innerWidth - 16) {
+                    left = window.innerWidth - popoverWidth - 16;
+                }
+                if (left < 16) left = 16;
+                if (top + 180 > window.innerHeight) {
+                    top = Math.max(16, rect.top - 180);
+                }
+
+                popover.style.left = `${left}px`;
+                popover.style.top = `${top}px`;
+            }
+
+            popover.classList.remove('hidden');
+        }
+
+        function hideInfoTooltip() {
+            const popover = document.getElementById('info-tooltip-popover');
+            if (popover) popover.classList.add('hidden');
+        }
+
+        // Hide on click outside
+        document.addEventListener('click', (e) => {
+            const popover = document.getElementById('info-tooltip-popover');
+            if (popover && !popover.classList.contains('hidden')) {
+                if (!popover.contains(e.target) && (!_activeTooltipBtn || !_activeTooltipBtn.contains(e.target))) {
+                    hideInfoTooltip();
+                }
+            }
+        });
+
+        // Hide on scroll
+        window.addEventListener('scroll', hideInfoTooltip, { passive: true });
+        document.addEventListener('scroll', hideInfoTooltip, { capture: true, passive: true });
+
         function escapeHTML(str) {
             if (!str) return '';
             return String(str)
@@ -469,7 +929,7 @@
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;');
         }
-        
+
         const FAILURE_NAMES = {
             'insufficient_funds': 'Insufficient funds',
             'expired_card': 'Expired card',
@@ -491,12 +951,11 @@
         function showToast(message, type = 'error') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
-            toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border text-sm transition-all duration-300 transform translate-y-2 opacity-0 max-w-sm bg-surface-container-high ${
-                type === 'success' 
-                    ? 'border-success/30 text-success' 
-                    : 'border-error/30 text-error'
-            }`;
-            
+            toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border text-sm transition-all duration-300 transform translate-y-2 opacity-0 max-w-sm bg-surface-container-high ${type === 'success'
+                ? 'border-success/30 text-success'
+                : 'border-error/30 text-error'
+                }`;
+
             const icon = type === 'success' ? 'check_circle' : 'error';
             toast.innerHTML = `
                 <span class="material-symbols-outlined text-[20px]">${icon}</span>
@@ -505,13 +964,13 @@
                     <span class="material-symbols-outlined text-[16px]">close</span>
                 </button>
             `;
-            
+
             container.appendChild(toast);
-            
+
             setTimeout(() => {
                 toast.classList.remove('translate-y-2', 'opacity-0');
             }, 10);
-            
+
             setTimeout(() => {
                 toast.classList.add('opacity-0', 'translate-y-2');
                 setTimeout(() => toast.remove(), 300);
@@ -522,7 +981,7 @@
             const btn = document.getElementById(btnId);
             if (!btn) return;
             const span = btn.querySelector('span:last-of-type') || btn;
-            
+
             if (isLoading) {
                 btn.disabled = true;
                 btn.classList.add('opacity-50', 'cursor-not-allowed');
@@ -548,23 +1007,160 @@
             }
         }
 
-        // REDESIGNED CORE INTEGRATION: Refresh Demo Story Page
+        let isPolicyRulesExpanded = false;
+        function togglePolicyRules() {
+            isPolicyRulesExpanded = !isPolicyRulesExpanded;
+            const rulesList = document.getElementById('policy-rules-list');
+            const chevron = document.getElementById('policy-rules-chevron');
+            const toggleText = document.getElementById('policy-rules-toggle-text');
+
+            if (isPolicyRulesExpanded) {
+                rulesList.classList.remove('hidden');
+                chevron.classList.add('rotate-180');
+                toggleText.innerText = 'Hide Rules';
+            } else {
+                rulesList.classList.add('hidden');
+                chevron.classList.remove('rotate-180');
+                toggleText.innerText = 'View Rules';
+            }
+        }
+
+        let isBenchmarkExpanded = false;
+        function toggleBenchmarkCard() {
+            isBenchmarkExpanded = !isBenchmarkExpanded;
+            const body = document.getElementById('benchmark-card-body');
+            const chevron = document.getElementById('benchmark-chevron');
+            const text = document.getElementById('benchmark-toggle-text');
+            if (isBenchmarkExpanded) {
+                body.classList.remove('hidden');
+                chevron.classList.add('rotate-180');
+                text.innerText = 'Hide Benchmark';
+            } else {
+                body.classList.add('hidden');
+                chevron.classList.remove('rotate-180');
+                text.innerText = 'View Benchmark';
+            }
+        }
+
+        let isBatchPanelExpanded = false;
+        function toggleBatchPanel() {
+            isBatchPanelExpanded = !isBatchPanelExpanded;
+            const body = document.getElementById('batch-panel-body');
+            const chevron = document.getElementById('batch-panel-chevron');
+            const text = document.getElementById('batch-panel-toggle-text');
+            if (isBatchPanelExpanded) {
+                body.classList.remove('hidden');
+                chevron.classList.add('rotate-180');
+                text.innerText = 'Hide Batch Operations';
+            } else {
+                body.classList.add('hidden');
+                chevron.classList.remove('rotate-180');
+                text.innerText = 'View Batch Operations';
+            }
+        }
+
+        // Active Demo Transaction state
+        let currentDemoPaymentId = 'demo_pay_ref_4500';
+
+        const DEMO_TXNS_METADATA = {
+            'demo_pay_ref_4500': {
+                name: 'Bank Server Down',
+                bank: 'HDFC Bank',
+                amount: 4500,
+                ref: 'demo_pay_ref_4500',
+                failureTitle: 'Bank server unavailable',
+                failureDesc: 'The payment could not be completed because the bank/infrastructure layer was unavailable.'
+            },
+            'demo_pay_ref_1200': {
+                name: 'Expired Card',
+                bank: 'ICICI Bank',
+                amount: 1200,
+                ref: 'demo_pay_ref_1200',
+                failureTitle: 'Expired card (54)',
+                failureDesc: 'Card expired / invalid expiration date provided.'
+            },
+            'demo_pay_ref_7800': {
+                name: 'Insufficient Funds',
+                bank: 'SBI',
+                amount: 7800,
+                ref: 'demo_pay_ref_7800',
+                failureTitle: 'Insufficient funds (51)',
+                failureDesc: 'Customer card account does not have sufficient balance for ₹7,800.'
+            },
+            'demo_pay_ref_3300': {
+                name: 'Network Timeout',
+                bank: 'Axis Bank',
+                amount: 3300,
+                ref: 'demo_pay_ref_3300',
+                failureTitle: 'Gateway Network Timeout',
+                failureDesc: 'Payment authorization timed out during payment gateway handshake.'
+            },
+            'demo_pay_ref_5000': {
+                name: 'Card Declined',
+                bank: 'Kotak Bank',
+                amount: 5000,
+                ref: 'demo_pay_ref_5000',
+                failureTitle: 'Generic Card Decline',
+                failureDesc: 'Transaction declined by card issuer without specific error code.'
+            }
+        };
+
+        function selectDemoTxn(paymentId) {
+            currentDemoPaymentId = paymentId;
+            updateDemoChipStyles();
+            refreshDemoStory();
+        }
+
+        function updateDemoChipStyles() {
+            const allChips = ['demo_pay_ref_4500', 'demo_pay_ref_1200', 'demo_pay_ref_7800', 'demo_pay_ref_3300', 'demo_pay_ref_5000'];
+            allChips.forEach(id => {
+                const btn = document.getElementById(`chip-${id}`);
+                if (!btn) return;
+                if (id === currentDemoPaymentId) {
+                    btn.className = 'demo-chip text-left px-3 py-2 rounded-lg border text-xs transition-all flex items-center justify-between bg-indigo-600/20 border-indigo-500/40 text-white font-medium shadow-md';
+                    const dot = btn.querySelector('.w-2');
+                    if (dot) dot.className = 'w-2 h-2 rounded-full bg-indigo-400';
+                } else {
+                    btn.className = 'demo-chip text-left px-3 py-2 rounded-lg border border-outline-variant/30 text-xs transition-all flex items-center justify-between bg-background/50 hover:bg-surface-variant text-on-surface-variant';
+                    const dot = btn.querySelector('.w-2');
+                    if (dot) dot.className = 'w-2 h-2 rounded-full bg-outline';
+                }
+            });
+        }
+
+        function updatePaymentFailureCardUI(txn, paymentId) {
+            const meta = DEMO_TXNS_METADATA[paymentId] || {
+                name: 'Demo Payment',
+                bank: txn ? txn.bank || 'Bank' : 'Bank',
+                amount: txn ? txn.amount : 4500,
+                ref: paymentId,
+                failureTitle: txn ? txn.failure_code.replace(/_/g, ' ') : 'Payment Failed',
+                failureDesc: txn ? txn.raw_failure_text : 'Payment processing failed.'
+            };
+
+            const amountVal = txn ? txn.amount : meta.amount;
+            document.getElementById('demo-txn-ref').innerText = paymentId;
+            document.getElementById('demo-txn-amount').innerText = formatINR(amountVal);
+            document.getElementById('demo-txn-bank').innerText = `${txn && txn.bank ? txn.bank : meta.bank} · Via Card`;
+            document.getElementById('demo-txn-failure-name').innerText = meta.failureTitle;
+            document.getElementById('demo-txn-failure-desc').innerText = txn ? txn.raw_failure_text : meta.failureDesc;
+        }
+
+        // Refresh Demo Story Page for selected Demo Transaction
         async function refreshDemoStory() {
             try {
-                // Find ID of HDFC bank_server_down transaction
                 const txnsRes = await fetch(`${API_BASE}/transactions`);
                 if (!txnsRes.ok) throw new Error('Failed to query transactions list');
                 const transactions = await txnsRes.json();
-                
-                // Only match by exact payment_id — never fall back to failure_code which could grab any random transaction
-                const demoTxn = transactions.find(t => t.payment_id === 'demo_pay_ref_4500');
+
+                const demoTxn = transactions.find(t => t.payment_id === currentDemoPaymentId);
+                updatePaymentFailureCardUI(demoTxn, currentDemoPaymentId);
+
                 if (!demoTxn) {
-                    // Demo transaction not found — show seed instruction
                     renderNotSeededState();
                     return;
                 }
 
-                // Query attempts
                 const response = await fetch(`${API_BASE}/recovery/audit/${demoTxn.id}`);
                 if (!response.ok) throw new Error('Failed to query audit trail');
                 const attempts = await response.json();
@@ -578,6 +1174,9 @@
                 document.getElementById('service-unavailable-card').classList.remove('hidden');
                 showToast(`Unable to load demo pipeline context: ${err.message}`);
             }
+
+            // Also refresh batch operations table
+            refreshBatchDashboardTable();
         }
 
         function renderEmptyDemoState() {
@@ -612,7 +1211,7 @@
                         <span class="font-bold text-white text-sm">DEMO TRANSACTION NOT FOUND</span>
                     </div>
                     <p class="text-xs text-on-surface-variant leading-relaxed">
-                        The canonical demo transaction (<code class="text-warning font-mono">demo_pay_ref_4500</code>) is not in the database.
+                        The canonical demo transaction (<code class="text-warning font-mono">${currentDemoPaymentId}</code>) is not in the database.
                     </p>
                     <p class="text-xs text-on-surface-variant font-mono bg-background/60 px-3 py-2 rounded border border-outline-variant/20">
                         python scripts/seed_demo.py
@@ -625,14 +1224,13 @@
         function renderTimeline(attempts) {
             const container = document.getElementById('timeline-nodes-container');
             container.innerHTML = '';
-            
+
             if (attempts.length === 0) {
                 container.innerHTML = `<div class="text-on-surface-variant text-xs py-4 text-center">Timeline will show attempt progress.</div>`;
                 return;
             }
 
             attempts.forEach((attempt, index) => {
-                const isFirst = index === 0;
                 const isLast = index === attempts.length - 1;
                 const isBlocked = attempt.policy_decision === 'REJECTED';
 
@@ -663,7 +1261,13 @@
                         </div>
                         <div class="flex flex-col gap-2">
                             <div class="flex justify-between items-center">
-                                <h4 class="font-semibold text-white text-sm uppercase tracking-wider">Attempt ${attempt.attempt_number}${isBlocked ? ' <span class="text-[10px] text-error font-mono ml-1">[BLOCKED]</span>' : ''}</h4>
+                                <h4 class="font-semibold text-white text-sm uppercase tracking-wider flex items-center gap-1">
+                                    <span>Attempt ${attempt.attempt_number}</span>
+                                    <button type="button" onclick="showInfoTooltip(event, 'Attempt')" class="text-on-surface-variant/70 hover:text-primary transition-colors ml-1" title="Learn more">
+                                        <span class="material-symbols-outlined text-[14px]">info</span>
+                                    </button>
+                                    ${isBlocked ? '<span class="text-[10px] text-error font-mono ml-1">[BLOCKED]</span>' : ''}
+                                </h4>
                                 <span class="text-[10px] text-on-surface-variant font-mono">${new Date(attempt.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
 
@@ -691,7 +1295,6 @@
 
                 container.insertAdjacentHTML('beforeend', nodeHtml);
 
-                // Add transition explanation between attempts
                 if (!isLast) {
                     const prevOutcome = attempt.outcome;
                     const transitionMsg = prevOutcome === 'skipped'
@@ -714,8 +1317,6 @@
         }
 
         function renderLatestAttempt(attempts, txn) {
-            const btnStep = document.getElementById('btn-demo-step');
-            
             if (attempts.length === 0) {
                 renderEmptyDemoState();
                 return;
@@ -726,13 +1327,12 @@
             // 1. AI Diagnosis Card
             document.getElementById('ai-diagnosis-val').innerText = escapeHTML(FAILURE_NAMES[attempt.diagnosis] || attempt.diagnosis.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
             document.getElementById('ai-confidence-val').innerText = `${Math.round(attempt.confidence * 100)}%`;
-            
+
             const diagBadge = document.getElementById('diagnosis-source-badge');
             if (attempt.diagnosis_source === 'AI') {
                 diagBadge.className = 'inline-flex items-center mt-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-600/20 text-purple-400 border border-purple-500/30';
                 diagBadge.innerText = 'AI';
             } else {
-                // Deterministic Rules or any fallback — display honestly as DETERMINISTIC FALLBACK
                 diagBadge.className = 'inline-flex items-center mt-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-orange-600/20 text-orange-400 border border-orange-500/30';
                 diagBadge.innerText = 'DETERMINISTIC FALLBACK';
             }
@@ -769,7 +1369,7 @@
                 }
             }
 
-            // 3. Executor — enforce invariant: REJECTED policy → SKIPPED executor
+            // 3. Executor
             const isBlocked = attempt.policy_decision === 'REJECTED';
             const executorReasonBox = document.getElementById('executor-reason-box');
             const executorDefaultFooter = document.getElementById('executor-default-footer');
@@ -794,7 +1394,6 @@
                 document.getElementById('next-prob-val').innerText = '0%';
                 document.getElementById('next-ev-val').innerText = '₹0';
             } else if (isBlocked) {
-                // Policy blocked: show that we need to re-run for the next authorized window
                 document.getElementById('next-action-val').innerText = escapeHTML((attempt.ai_recommendation || 'run pipeline').replace(/_/g, ' '));
                 document.getElementById('next-prob-val').innerText = `${Math.round((attempt.ai_predicted_probability || 0) * 100)}%`;
                 document.getElementById('next-ev-val').innerText = formatINR(attempt.expected_recovery_value || 0);
@@ -817,7 +1416,7 @@
                         <span class="text-xs font-bold text-success font-mono">Net recovered</span>
                     </div>
                     <div class="flex justify-between items-baseline mt-1">
-                        <span class="text-3xl font-extrabold text-white">₹4,500</span>
+                        <span class="text-3xl font-extrabold text-white">${formatINR(txn.amount)}</span>
                         <span class="text-2xl font-bold text-success">${formatINR(attempt.net_recovery || 0)}</span>
                     </div>
                     <div class="text-xs text-on-surface-variant border-t border-success/20 pt-3 mt-1 flex items-center justify-between">
@@ -838,7 +1437,7 @@
                         <span class="text-xs font-bold text-error font-mono">Net recovery</span>
                     </div>
                     <div class="flex justify-between items-baseline mt-1">
-                        <span class="text-3xl font-extrabold text-white">₹4,500</span>
+                        <span class="text-3xl font-extrabold text-white">${formatINR(txn.amount)}</span>
                         <span class="text-2xl font-bold text-error">${formatINR(attempt.net_recovery || 0)}</span>
                     </div>
                     <div class="text-xs text-on-surface-variant border-t border-error/20 pt-3 mt-1 flex items-center justify-between">
@@ -849,7 +1448,6 @@
                 setLoading('btn-demo-step', true, 'LOST ✕');
                 document.getElementById('btn-demo-step').className = 'flex-[1.5] bg-error/25 border border-error/30 text-error py-2.5 rounded-lg font-label-md text-label-md transition-all cursor-not-allowed flex items-center justify-center gap-2';
             } else if (attempt.outcome === 'skipped') {
-                // Policy blocked — show DEFERRED state clearly
                 outcomeContainer.className = 'bg-warning/10 border border-warning/30 rounded-xl p-6 flex flex-col gap-3 transition-all duration-300';
                 outcomeContainer.innerHTML = `
                     <div class="flex justify-between items-start">
@@ -898,7 +1496,7 @@
 
             attempts.forEach(attempt => {
                 const dateString = new Date(attempt.timestamp).toLocaleString('en-IN');
-                
+
                 const auditCard = `
                     <div class="bg-surface-container-high border border-outline-variant/20 rounded-lg p-5">
                         <div class="flex justify-between items-center border-b border-outline-variant/10 pb-3 mb-4">
@@ -935,57 +1533,87 @@
             });
         }
 
-        async function resetDemoTxn() {
-            setLoading('btn-demo-step', true, 'Resetting demo state...');
+        // BATCH DASHBOARD ANALYTICS TABLE & ACTIONS
+        async function refreshBatchDashboardTable() {
             try {
-                const response = await fetch(`${API_BASE}/transactions/reset-demo`, { method: 'POST' });
-                if (!response.ok) throw new Error('Failed to reset demo transaction');
-                
-                await refreshDemoStory();
-                showToast('Demo transaction and attempts reset successfully!', 'success');
-            } catch (err) {
-                console.error(err);
-                showToast(`Unable to reset demo: ${err.message}`);
-            } finally {
-                setLoading('btn-demo-step', false, 'RUN NEXT RECOVERY');
-            }
-        }
+                const response = await fetch(`${API_BASE}/transactions`);
+                if (!response.ok) return;
+                const txns = await response.json();
 
+                const tbody = document.getElementById('batch-transactions-tbody');
+                tbody.innerHTML = '';
 
-        async function runDemoTxnStep() {
-            setLoading('btn-demo-step', true, 'Evaluating recovery...');
-            try {
-                // Find ID of HDFC bank_server_down transaction
-                const txnsRes = await fetch(`${API_BASE}/transactions`);
-                if (!txnsRes.ok) throw new Error('Failed to query transactions list');
-                const transactions = await txnsRes.json();
-                
-                // Always match by payment_id only — never fall back to failure_code
-                const demoTxn = transactions.find(t => t.payment_id === 'demo_pay_ref_4500');
-                if (!demoTxn) {
-                    showToast('Demo transaction not found. Re-seeding...');
-                    await resetDemoTxn();
+                if (txns.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="p-6 text-center text-on-surface-variant">
+                                No transactions found in database.
+                            </td>
+                        </tr>
+                    `;
+                    document.getElementById('batch-stat-total').innerText = '0';
+                    document.getElementById('batch-stat-recovered').innerText = '0 (0%)';
+                    document.getElementById('batch-stat-failed').innerText = '0 (0%)';
+                    document.getElementById('batch-stat-net').innerText = '₹0';
                     return;
                 }
 
-                // Process transaction step
-                const response = await fetch(`${API_BASE}/recovery/run/${demoTxn.id}`, { method: 'POST' });
-                if (!response.ok) throw new Error('Failed to run demo transaction step');
-                const attempt = await response.json();
-                
-                showToast(`Attempt ${attempt.attempt_number} completed: ${attempt.outcome}`, 'success');
-                await refreshDemoStory();
+                let totalCount = txns.length;
+                let recoveredCount = 0;
+                let failedCount = 0;
+                let totalNetRecovery = 0;
+
+                txns.forEach(t => {
+                    if (t.status === 'recovered') {
+                        recoveredCount++;
+                        totalNetRecovery += t.promised_amount || t.amount || 0;
+                    } else {
+                        failedCount++;
+                    }
+
+                    let statusBadge = '';
+                    if (t.status === 'recovered') {
+                        statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-success/20 text-success border border-success/30">RECOVERED</span>';
+                    } else if (t.status === 'lost') {
+                        statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-error/20 text-error border border-error/30">LOST</span>';
+                    } else {
+                        statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-warning/20 text-warning border border-warning/30">OPEN / RETRY</span>';
+                    }
+
+                    const isDemo = t.payment_id && t.payment_id.startsWith('demo_pay_ref');
+
+                    const rowHtml = `
+                        <tr class="${isDemo ? 'bg-indigo-950/20' : 'hover:bg-surface-variant/30'}">
+                            <td class="p-3 font-mono font-medium text-white flex items-center gap-1.5">
+                                ${t.payment_id || `TRX-${t.id}`}
+                                ${isDemo ? '<span class="text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-1 rounded">DEMO</span>' : ''}
+                            </td>
+                            <td class="p-3 font-mono text-[11px]">${escapeHTML(t.customer_id)}</td>
+                            <td class="p-3 font-semibold text-white font-mono">${formatINR(t.amount)}</td>
+                            <td class="p-3">${escapeHTML(FAILURE_NAMES[t.failure_code] || t.failure_code)}</td>
+                            <td class="p-3">${statusBadge}</td>
+                            <td class="p-3 font-mono">${t.attempts_count || 0}</td>
+                        </tr>
+                    `;
+                    tbody.insertAdjacentHTML('beforeend', rowHtml);
+                });
+
+                const recPct = totalCount > 0 ? Math.round((recoveredCount / totalCount) * 100) : 0;
+                const failPct = totalCount > 0 ? Math.round((failedCount / totalCount) * 100) : 0;
+
+                document.getElementById('batch-stat-total').innerText = totalCount;
+                document.getElementById('batch-stat-recovered').innerText = `${recoveredCount} (${recPct}%)`;
+                document.getElementById('batch-stat-failed').innerText = `${failedCount} (${failPct}%)`;
+                document.getElementById('batch-stat-net').innerText = formatINR(totalNetRecovery);
             } catch (err) {
-                console.error(err);
-                showToast(`Demo step failed: ${err.message}`);
-                await refreshDemoStory();
-            } finally {
-                setLoading('btn-demo-step', false, 'RUN NEXT RECOVERY');
+                console.error('Error refreshing batch dashboard:', err);
             }
         }
 
-        async function generateBatch() {
-            const scenario = document.getElementById('select-scenario').value;
+        async function generateBatchFromDashboard() {
+            const scenario = document.getElementById('dashboard-select-scenario').value;
+            const topSelect = document.getElementById('select-scenario');
+            if (topSelect) topSelect.value = scenario;
             showToast('Generating new batch of transactions...');
             try {
                 const response = await fetch(`${API_BASE}/transactions/generate`, {
@@ -1002,7 +1630,7 @@
             }
         }
 
-        async function runRecoveryBatch() {
+        async function runRecoveryBatchFromDashboard() {
             const threshold = document.getElementById('slider-threshold').value;
             showToast('Running batch recovery...');
             try {
@@ -1019,7 +1647,7 @@
             }
         }
 
-        async function runUntilResolved() {
+        async function runUntilResolvedFromDashboard() {
             const threshold = document.getElementById('slider-threshold').value;
             showToast('Running all until resolved...');
             try {
@@ -1036,20 +1664,77 @@
             }
         }
 
+        async function resetDemoTxn() {
+            setLoading('btn-demo-step', true, 'Resetting demo state...');
+            try {
+                const response = await fetch(`${API_BASE}/transactions/reset-demo`, { method: 'POST' });
+                if (!response.ok) throw new Error('Failed to reset demo transaction');
+
+                await refreshDemoStory();
+                showToast('Demo transaction and attempts reset successfully!', 'success');
+            } catch (err) {
+                console.error(err);
+                showToast(`Unable to reset demo: ${err.message}`);
+            } finally {
+                setLoading('btn-demo-step', false, 'RUN NEXT RECOVERY');
+            }
+        }
+
+        async function runDemoTxnStep() {
+            setLoading('btn-demo-step', true, 'Evaluating recovery...');
+            try {
+                const txnsRes = await fetch(`${API_BASE}/transactions`);
+                if (!txnsRes.ok) throw new Error('Failed to query transactions list');
+                const transactions = await txnsRes.json();
+
+                let demoTxn = transactions.find(t => t.payment_id === currentDemoPaymentId);
+                if (!demoTxn) {
+                    showToast('Demo transaction not found. Re-seeding...');
+                    await resetDemoTxn();
+                    return;
+                }
+
+                const response = await fetch(`${API_BASE}/recovery/run/${demoTxn.id}`, { method: 'POST' });
+                if (!response.ok) throw new Error('Failed to run demo transaction step');
+                const attempt = await response.json();
+
+                showToast(`Attempt ${attempt.attempt_number} completed: ${attempt.outcome}`, 'success');
+                await refreshDemoStory();
+            } catch (err) {
+                console.error(err);
+                showToast(`Demo step failed: ${err.message}`);
+                await refreshDemoStory();
+            } finally {
+                setLoading('btn-demo-step', false, 'RUN NEXT RECOVERY');
+            }
+        }
+
+        async function generateBatch() {
+            await generateBatchFromDashboard();
+        }
+
+        async function runRecoveryBatch() {
+            await runRecoveryBatchFromDashboard();
+        }
+
+        async function runUntilResolved() {
+            await runUntilResolvedFromDashboard();
+        }
+
         async function exportToCSV() {
             try {
                 const response = await fetch(`${API_BASE}/transactions`);
                 if (!response.ok) throw new Error('Failed to fetch transactions');
                 const transactions = await response.json();
-                
+
                 if (transactions.length === 0) {
                     showToast('No transactions available to export.');
                     return;
                 }
-                
+
                 const headers = ['Transaction ID', 'Customer ID', 'Amount', 'Failure Code', 'Status', 'Attempts Count', 'Promise To Pay', 'Promised Amount'];
                 const rows = transactions.map(t => [
-                    `TRX-${t.id}`,
+                    t.payment_id || `TRX-${t.id}`,
                     t.customer_id,
                     t.amount,
                     t.failure_code,
@@ -1058,7 +1743,7 @@
                     t.promise_to_pay ? 'True' : 'False',
                     t.promised_amount || 0
                 ]);
-                
+
                 const csvContent = [
                     headers.join(','),
                     ...rows.map(row => row.map(val => {
@@ -1069,7 +1754,7 @@
                         return stringVal;
                     }).join(','))
                 ].join('\n');
-                
+
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
@@ -1079,7 +1764,7 @@
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-                
+
                 showToast('CSV export downloaded successfully!', 'success');
             } catch (error) {
                 console.error(error);
@@ -1152,5 +1837,8 @@
             });
         });
     </script>
+
+
 </body>
+
 </html>

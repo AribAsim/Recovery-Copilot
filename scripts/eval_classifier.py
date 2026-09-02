@@ -95,17 +95,18 @@ def run_evaluation():
     avg_incorrect_conf = sum(incorrect_confidences) / len(incorrect_confidences) if incorrect_confidences else 0.0
     
     # Generate Confusion Matrix Table
-    headers = ["True \\ Pred"] + VALID_CATEGORIES
+    cat_list = sorted(list(VALID_CATEGORIES))
+    headers = ["True \\ Pred"] + cat_list
     cm_rows = []
-    for true_cat in VALID_CATEGORIES:
+    for true_cat in cat_list:
         row = [true_cat]
-        for pred_cat in VALID_CATEGORIES:
+        for pred_cat in cat_list:
             row.append(str(conf_matrix[true_cat][pred_cat]))
         cm_rows.append(row)
         
     # Generate Precision / Recall Table
     pr_rows = []
-    for cat in VALID_CATEGORIES:
+    for cat in cat_list:
         tp = stats[cat]["tp"]
         fp = stats[cat]["fp"]
         fn = stats[cat]["fn"]

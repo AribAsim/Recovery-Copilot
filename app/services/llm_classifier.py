@@ -75,6 +75,9 @@ def _extract_content(data: dict[str, Any]) -> str:
     Supports:
         choices[0].message.content -> string
         choices[0].message.content -> list of text blocks
+
+    Raises ValueError if the response was truncated (finish_reason == "length"),
+    which triggers the provider cascade to try the next provider.
     """
 
     choices = data.get("choices")
@@ -82,7 +85,16 @@ def _extract_content(data: dict[str, Any]) -> str:
     if not isinstance(choices, list) or not choices:
         raise ValueError("LLM response contained no choices")
 
-    message = choices[0].get("message")
+    choice = choices[0]
+
+    # Guard: truncated response → do not attempt to parse partial JSON.
+    finish_reason = choice.get("finish_reason")
+    if finish_reason == "length":
+        raise ValueError(
+            "LLM response was truncated before completion (finish_reason=length)"
+        )
+
+    message = choice.get("message")
 
     if not isinstance(message, dict):
         raise ValueError("LLM response contained no valid message")
@@ -219,6 +231,10 @@ def _validate_result(
 ) -> tuple[str, float, str]:
     """
     Validate and normalize the model classification.
+
+    The model is asked to return only {"category": ..., "confidence": ...}.
+    Reasoning is generated locally from the structured result so the model
+    does not waste token budget on prose and we get a stable output shape.
     """
 
     # -------------------------
@@ -262,21 +278,14 @@ def _validate_result(
     )
 
     # -------------------------
-    # Reasoning
+    # Reasoning (generated locally — not from the model)
     # -------------------------
 
-    reasoning = parsed.get(
-        "reasoning",
-        "",
+    reasoning = (
+        f"The failure was classified as "
+        f"{category.replace('_', ' ')} "
+        f"based on the provided payment failure information."
     )
-
-    if not isinstance(reasoning, str):
-        reasoning = ""
-
-    reasoning = reasoning.strip()
-
-    # Keep stored reasoning small.
-    reasoning = reasoning[:500]
 
     return (
         category,
@@ -324,6 +333,16 @@ def _get_providers() -> list[dict]:
             "url": settings.GROQ_API_URL,
             "key": settings.GROQ_API_KEY,
             "model": settings.GROQ_MODEL,
+        })
+
+    # Fallback 3: Gemini
+    if is_valid_key(settings.GEMINI_API_KEY):
+
+        providers.append({
+            "name": "Gemini",
+            "url": settings.GEMINI_API_URL,
+            "key": settings.GEMINI_API_KEY,
+            "model": settings.GEMINI_MODEL,
         })
 
     return providers
@@ -413,33 +432,14 @@ def classify(
         sorted(VALID_CATEGORIES)
     )
 
-    system_prompt = f"""
-You are a payment failure classification system.
-
-Classify the payment failure into exactly ONE of these categories:
-
-{categories}
-
-Return ONLY one JSON object using exactly these fields:
-
-{{
-  "category": "one allowed category",
-  "confidence": 0.0,
-  "reasoning": "one short sentence"
-}}
-
-Rules:
-
-- category MUST exactly match one allowed category.
-- confidence MUST be between 0.0 and 1.0.
-- reasoning MUST be one short sentence.
-- Do NOT provide a thinking process.
-- Do NOT provide chain-of-thought.
-- Do NOT provide analysis before the JSON.
-- Do NOT use Markdown.
-- Do NOT use ```json.
-- Do NOT include any text before or after the JSON.
-"""
+    system_prompt = (
+        "You are a payment failure classifier.\n"
+        f"Classify the failure into exactly one of these categories: "
+        f"{categories}.\n\n"
+        "Return ONLY valid JSON in exactly this format:\n"
+        '{"category":"network_timeout","confidence":0.95}\n\n'
+        "Do not include explanations, markdown, reasoning, or thinking."
+    )
 
     # -----------------------------------------------------------------------
     # Provider fallback chain

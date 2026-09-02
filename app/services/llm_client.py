@@ -50,7 +50,12 @@ def generate_message(action: str, amount: float) -> str:
             "key": settings.GROQ_API_KEY,
             "model": settings.GROQ_MODEL
         })
-
+    if is_valid_key(settings.GEMINI_API_KEY):
+        providers.append({
+            "url": settings.GEMINI_API_URL,
+            "key": settings.GEMINI_API_KEY,
+            "model": settings.GEMINI_MODEL
+        })
     if not providers:
         return fallback
 
